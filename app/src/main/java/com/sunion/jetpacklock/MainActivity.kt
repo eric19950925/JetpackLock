@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
@@ -21,77 +22,70 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.amazonaws.mobile.client.AWSMobileClient
-import com.amazonaws.mobile.client.Callback
-import com.amazonaws.mobile.client.SignOutOptions
-import com.amazonaws.mobile.client.UserStateDetails
-import com.amazonaws.mobile.client.results.SignInResult
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
+    private val vm: LoginViewModel by viewModels()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            SimpleComposable()
+            SimpleComposable(vm)
         }
     }
 }
 
 @Composable
-fun SimpleComposable() {
+fun SimpleComposable(vm: LoginViewModel) {
+    SimpleComposable(
+        onLoginClick = vm::login,
+        email = vm.email.value?:"",
+        password = vm.password.value?:"",
+        onEmailChange = vm::setEmail,
+        onPasswordChange = vm::setPassword,
+        logger = vm.logger.value?:"Welcome~\n",
+        onLoggerClean = vm::cleanLogger,
+        onLogOutClick = vm::logOut
+    )
+}
+@Composable
+fun SimpleComposable(
+    onLoginClick: () -> Unit,
+    email: String,
+    password: String,
+    onEmailChange:(String) -> Unit,
+    onPasswordChange:(String) -> Unit,
+    logger: String,
+    onLoggerClean: () -> Unit,
+    onLogOutClick:() -> Unit
+) {
     val mContext = LocalContext.current // for Toast
     //If init awsMobileClient here will take too many sources to display the preview correctly.
-    val awsMobileClient = AWSMobileClient.getInstance().apply {
-        initialize(mContext, object : Callback<UserStateDetails> {
-            override fun onResult(result: UserStateDetails?) {
-                Log.d("TAG",result.toString())
-            }
-
-            override fun onError(e: Exception?) {
-                Log.e("TAG",e.toString())
-            }
-        })
-    }
     val idValue = remember { mutableStateOf(TextFieldValue()) }
     val passwordValue = remember { mutableStateOf(TextFieldValue()) }
     val openDialog = remember { mutableStateOf(false) }
     val openLogoutDialog = remember { mutableStateOf(false) }
     val logcat = remember { mutableStateOf("Welcome~\n\n") }
 
-    Column(
-        modifier = Modifier.padding(8.dp),
-        verticalArrangement = Arrangement.Top
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.SpaceAround,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp)
-        ) {
+    Column( modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.Top) {
+        Row( horizontalArrangement = Arrangement.SpaceAround, modifier = Modifier.fillMaxWidth().padding(8.dp)) {
             Button(
                 onClick = {
 //                Toast.makeText(mContext, "${idValue.value.text} ${passwordValue.value.text}", Toast.LENGTH_SHORT).show()
                     openDialog.value = true
                 }
-            ){
-                Text("Login")
-            }
+            ){ Text("Login") }
             Button(
                 onClick = {
                     openLogoutDialog.value = true
                 }
-            ){
-                Text("Logout")
-            }
+            ){ Text("Logout") }
 
             Button(
-                onClick = {
-                    logcat.value = ""
-                }
-            ){
-                Text("Clean")
-            }
+                onClick = onLoggerClean
+            ){ Text("Clean") }
         }
-        Text(text = logcat.value)
+        Text(text = logger)
     }
 
     if (openDialog.value) {
@@ -106,7 +100,10 @@ fun SimpleComposable() {
                 Column() {
                     TextField(
                         value = idValue.value,
-                        onValueChange = { idValue.value = it },
+                        onValueChange = {
+                            idValue.value = it
+                            onEmailChange.invoke(idValue.value.text)
+                                        },
                         placeholder = { Text(text = "Enter your id") },
                         keyboardOptions = KeyboardOptions(
                             capitalization = KeyboardCapitalization.None,
@@ -116,7 +113,10 @@ fun SimpleComposable() {
                     )
                     TextField(
                         value = passwordValue.value,
-                        onValueChange = { passwordValue.value = it },
+                        onValueChange = {
+                            passwordValue.value = it
+                            onPasswordChange.invoke(passwordValue.value.text)
+                                        },
                         placeholder = { Text(text = "Enter your password") },
                         keyboardOptions = KeyboardOptions(
                             capitalization = KeyboardCapitalization.None,
@@ -129,17 +129,8 @@ fun SimpleComposable() {
             confirmButton = {
                 Button(
                     onClick = {
-                        awsMobileClient.signIn(idValue.value.text, passwordValue.value.text, null, object: Callback<SignInResult>{
-                            override fun onResult(result: SignInResult?) {
-                                logcat.value = logcat.value + "login status: ${result?.signInState}\n"
-                            }
-
-                            override fun onError(e: java.lang.Exception?) {
-                                logcat.value = logcat.value + "login error: $e\n"
-                            }
-
-                        })
-                        Toast.makeText(mContext, "${idValue.value.text} ${passwordValue.value.text}", Toast.LENGTH_SHORT).show()
+                        onLoginClick.invoke()
+                        Toast.makeText(mContext, "$email $password", Toast.LENGTH_SHORT).show()
                         openDialog.value = false
                     }
                 ) {
@@ -167,16 +158,7 @@ fun SimpleComposable() {
                 Button(
                     onClick = {
                         //SignOutOptions can not be null
-                        awsMobileClient.signOut(SignOutOptions.builder().build(), object :Callback<Void> {
-                            override fun onResult(result: Void?) {
-                                logcat.value = logcat.value + "logout success\n"
-                            }
-
-                            override fun onError(e: java.lang.Exception?) {
-                                logcat.value = logcat.value + "logout error: $e\n"
-                            }
-
-                        })
+                        onLogOutClick.invoke()
                         openLogoutDialog.value = false
                     }
                 ) {
@@ -197,5 +179,14 @@ fun SimpleComposable() {
 @Composable
 @Preview(showSystemUi = true)
 fun MainActivityPreview(){
-    SimpleComposable()
+    SimpleComposable(
+        onLoginClick = {},
+        email = "",
+        onEmailChange = {},
+        password = "12345678",
+        onPasswordChange = {},
+        logger = "Welcome!!",
+        onLoggerClean = {},
+        onLogOutClick = {}
+    )
 }
