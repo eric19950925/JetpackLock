@@ -5,6 +5,7 @@ import android.util.Log
 import com.amazonaws.mobile.client.AWSMobileClient
 import com.amazonaws.mobile.client.Callback
 import com.amazonaws.mobile.client.UserStateDetails
+import com.sunion.jetpacklock.domain.repository.AuthRepository
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -36,7 +37,7 @@ object AppModule {
     @Module
     abstract class Bind {
         @Binds
-        abstract fun bindCognitoRepository(authRepository: CognitoAuthRepository):AuthRepository
+        abstract fun bindCognitoRepository(authRepository: CognitoAuthRepository): AuthRepository
 
     }
 }

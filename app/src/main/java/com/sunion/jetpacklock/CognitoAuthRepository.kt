@@ -6,6 +6,7 @@ import com.amazonaws.mobile.client.Callback
 import com.amazonaws.mobile.client.SignOutOptions
 import com.amazonaws.mobile.client.results.SignInResult
 import com.amazonaws.mobile.client.results.SignInState
+import com.sunion.jetpacklock.domain.repository.AuthRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel

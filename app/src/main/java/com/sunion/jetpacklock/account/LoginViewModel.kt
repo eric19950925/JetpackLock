@@ -1,13 +1,12 @@
-package com.sunion.jetpacklock
+package com.sunion.jetpacklock.account
 
 import android.util.Log
 import androidx.lifecycle.*
+import com.sunion.jetpacklock.domain.usecase.SignInUseCase
+import com.sunion.jetpacklock.domain.usecase.SignOutUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -26,11 +25,15 @@ class LoginViewModel @Inject constructor(
     private val _logger = MutableLiveData<String>("Welcome~\n")
     val logger: LiveData<String> = _logger
 
+    private val _uiEvent = MutableSharedFlow<UiEvent>()
+    val uiEvent: SharedFlow<UiEvent> = _uiEvent
+
     fun login(){
         signIn.invoke(email.value?:"",password.value?:"")
             .flowOn(Dispatchers.IO)
             .onEach {
                 viewModelScope.launch {
+                    _uiEvent.emit(UiEvent.Success)
                     Log.d("TAG", "login $it.")
                 }
             }
@@ -63,4 +66,8 @@ class LoginViewModel @Inject constructor(
     fun cleanLogger(){
         _logger.value = ""
     }
+}
+sealed class UiEvent {
+    object Success : UiEvent()
+    data class Fail(val message: String) : UiEvent()
 }

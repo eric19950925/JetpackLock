@@ -1,5 +1,6 @@
-package com.sunion.jetpacklock
+package com.sunion.jetpacklock.domain.usecase
 
+import com.sunion.jetpacklock.domain.repository.AuthRepository
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 
