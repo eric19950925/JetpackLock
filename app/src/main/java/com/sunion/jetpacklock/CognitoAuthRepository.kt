@@ -1,5 +1,6 @@
 package com.sunion.jetpacklock
 
+import android.util.Log
 import com.amazonaws.AmazonServiceException
 import com.amazonaws.mobile.client.AWSMobileClient
 import com.amazonaws.mobile.client.Callback
@@ -11,8 +12,10 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flow
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -61,5 +64,10 @@ class CognitoAuthRepository @Inject constructor(
         }
         mobileClient.signOut(SignOutOptions.builder().build(), callback)
         awaitClose()
+    }
+
+    override fun getIdToken(): Flow<String> = flow {
+        Log.d("TAG",mobileClient.tokens.idToken.tokenString)
+        emit(mobileClient.tokens.idToken.tokenString)
     }
 }

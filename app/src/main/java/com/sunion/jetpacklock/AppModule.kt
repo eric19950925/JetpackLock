@@ -5,6 +5,8 @@ import android.util.Log
 import com.amazonaws.mobile.client.AWSMobileClient
 import com.amazonaws.mobile.client.Callback
 import com.amazonaws.mobile.client.UserStateDetails
+import com.google.gson.GsonBuilder
+import com.sunion.jetpacklock.api.AccountAPI
 import com.sunion.jetpacklock.domain.repository.AuthRepository
 import dagger.Binds
 import dagger.Module
@@ -12,6 +14,12 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
+import retrofit2.Retrofit
+import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory
+import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
 @InstallIn(SingletonComponent::class)
@@ -32,6 +40,33 @@ object AppModule {
                 }
             })
         }
+
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(authRepository: AuthRepository): OkHttpClient {
+        val loggingInterceptor = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.HEADERS
+            level = HttpLoggingInterceptor.Level.BODY
+        }
+        return OkHttpClient.Builder()
+            .addInterceptor(loggingInterceptor)
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(10, TimeUnit.SECONDS)
+            .build()
+    }
+    @Provides
+    @Singleton
+    fun provideIkeyApi(client: OkHttpClient): AccountAPI = Retrofit.Builder()
+        .baseUrl(BuildConfig.API_GATEWAY_ENDPOINT)
+        .client(client)
+        .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
+        .addConverterFactory(GsonConverterFactory.create(
+            GsonBuilder()
+            .setLenient()
+            .disableHtmlEscaping()
+            .create()))
+        .build()
+        .create(AccountAPI::class.java)
 
     @InstallIn(SingletonComponent::class)
     @Module

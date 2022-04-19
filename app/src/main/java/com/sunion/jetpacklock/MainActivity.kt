@@ -23,6 +23,9 @@ class MainActivity : AppCompatActivity() {
             NavigationComponent(navController)
         }
     }
+    companion object {
+        const val CONTENT_TYPE_JSON = "application/json; charset=utf-8"
+    }
 }
 
 @Composable
@@ -34,7 +37,10 @@ fun NavigationComponent(navController: NavHostController) {
     ) {
         composable("login") {
             AccountNavigation(
-                onLoginSuccess= { navController.navigate("home") },
+                onLoginSuccess= {
+                    vm.setAttachPolicy()
+                    navController.navigate("home")
+                                },
                 vm
             )
         }
@@ -43,7 +49,8 @@ fun NavigationComponent(navController: NavHostController) {
                 onLogOutClick = {
                     vm.logOut()
                     navController.navigate("login")
-                }
+                },
+                onGetTimeClick = { vm.getTime() }
             )
         }
     }

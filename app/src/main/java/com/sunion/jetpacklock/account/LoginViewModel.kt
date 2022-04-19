@@ -2,8 +2,7 @@ package com.sunion.jetpacklock.account
 
 import android.util.Log
 import androidx.lifecycle.*
-import com.sunion.jetpacklock.domain.usecase.SignInUseCase
-import com.sunion.jetpacklock.domain.usecase.SignOutUseCase
+import com.sunion.jetpacklock.domain.usecase.*
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
@@ -14,6 +13,10 @@ import javax.inject.Inject
 class LoginViewModel @Inject constructor(
     private val signIn: SignInUseCase,
     private val signOut: SignOutUseCase,
+    private val getIdToken: GetIdTokenUseCase,
+    private val setFCMUseCase: SetFCMUseCase,
+    private val getTimeUseCase: GetTimeUseCase,
+    private val attachPolicyUseCase: AttachPolicyUseCase
 ) : ViewModel() {
 
     private val _email = MutableLiveData<String>()
@@ -66,6 +69,29 @@ class LoginViewModel @Inject constructor(
     fun cleanLogger(){
         _logger.value = ""
     }
+    fun getTime(){
+        getIdToken()
+            .flatMapConcat {
+                getTimeUseCase(it)
+            }
+            .flowOn(Dispatchers.IO)
+            .onEach {
+                Log.d("TAG",it.toString()) }
+            .catch { e -> Log.e("TAG",e.toString()) }
+            .launchIn(viewModelScope)
+    }
+    fun setAttachPolicy(){
+        getIdToken()
+            .flatMapConcat {
+                attachPolicyUseCase(it)
+            }
+            .flowOn(Dispatchers.IO)
+            .onEach {
+                Log.d("TAG",it.toString()) }
+            .catch { e -> Log.e("TAG",e.toString()) }
+            .launchIn(viewModelScope)
+    }
+
 }
 sealed class UiEvent {
     object Success : UiEvent()
