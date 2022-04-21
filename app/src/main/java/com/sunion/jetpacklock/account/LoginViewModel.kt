@@ -16,6 +16,7 @@ class LoginViewModel @Inject constructor(
     private val getIdToken: GetIdTokenUseCase,
     private val setFCMUseCase: SetFCMUseCase,
     private val getTimeUseCase: GetTimeUseCase,
+    private val isSignedIn: IsSignedInUseCase,
     private val attachPolicyUseCase: AttachPolicyUseCase
 ) : ViewModel() {
 
@@ -92,8 +93,10 @@ class LoginViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
-}
-sealed class UiEvent {
-    object Success : UiEvent()
-    data class Fail(val message: String) : UiEvent()
+    fun checkSignedIn() = isSignedIn()
+
+    sealed class UiEvent {
+        object Success : UiEvent()
+        data class Fail(val message: String) : UiEvent()
+    }
 }

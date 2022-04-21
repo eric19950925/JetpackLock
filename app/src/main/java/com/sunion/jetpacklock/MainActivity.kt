@@ -12,6 +12,7 @@ import androidx.navigation.compose.rememberNavController
 import com.sunion.jetpacklock.account.AccountNavigation
 import com.sunion.jetpacklock.account.LoginViewModel
 import com.sunion.jetpacklock.home.HomeScreen
+import com.sunion.jetpacklock.welcome.WelcomeScreen
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -33,8 +34,19 @@ fun NavigationComponent(navController: NavHostController) {
     val vm = viewModel<LoginViewModel>()
     NavHost(
         navController = navController,
-        startDestination = "login"
+        startDestination = "welcome"
     ) {
+        composable("welcome") {
+            WelcomeScreen(
+                vm,
+                toHome = {
+                    navController.navigate("home")
+                },
+                toLogin = {
+                    navController.navigate("login")
+                }
+            )
+        }
         composable("login") {
             AccountNavigation(
                 onLoginSuccess= {

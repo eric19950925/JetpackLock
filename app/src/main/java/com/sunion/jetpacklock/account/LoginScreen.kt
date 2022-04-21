@@ -34,7 +34,7 @@ fun SimpleComposable(vm: LoginViewModel, navController: NavController, toHome: (
     LaunchedEffect(key1 = Unit) {
         vm.uiEvent.collect {
             when(it){
-                UiEvent.Success -> {
+                LoginViewModel.UiEvent.Success -> {
                     toHome.invoke()
                 }
                 else -> {}

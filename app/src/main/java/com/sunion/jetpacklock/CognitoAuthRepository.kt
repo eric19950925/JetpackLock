@@ -70,4 +70,8 @@ class CognitoAuthRepository @Inject constructor(
         Log.d("TAG",mobileClient.tokens.idToken.tokenString)
         emit(mobileClient.tokens.idToken.tokenString)
     }
+
+    override fun isSignedIn(): Boolean {
+        return mobileClient.isSignedIn
+    }
 }
