@@ -18,6 +18,13 @@ interface AccountAPI {
     )
 
     @Headers("Content-Type: application/json")
+    @POST("share-invitation/create")
+    suspend fun createShareInvitation(
+        @Header("Authorization") idToken: String,
+        @Body postBody: RequestBody
+    )
+
+    @Headers("Content-Type: application/json")
     @GET("time")
     suspend fun getTime(
         @Header("Authorization") idToken: String,

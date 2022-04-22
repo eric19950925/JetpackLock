@@ -17,7 +17,8 @@ class LoginViewModel @Inject constructor(
     private val setFCMUseCase: SetFCMUseCase,
     private val getTimeUseCase: GetTimeUseCase,
     private val isSignedIn: IsSignedInUseCase,
-    private val attachPolicyUseCase: AttachPolicyUseCase
+    private val attachPolicyUseCase: AttachPolicyUseCase,
+    private val shareInvitationUseCase: ShareInvitationUseCase
 ) : ViewModel() {
 
     private val _email = MutableLiveData<String>()
@@ -94,6 +95,18 @@ class LoginViewModel @Inject constructor(
     }
 
     fun checkSignedIn() = isSignedIn()
+
+    fun getShareInvitation(){
+        getIdToken()
+            .flatMapConcat {
+                shareInvitationUseCase(it)
+            }
+            .flowOn(Dispatchers.IO)
+            .onEach {
+                Log.d("TAG",it.toString()) }
+            .catch { e -> Log.e("TAG",e.toString()) }
+            .launchIn(viewModelScope)
+    }
 
     sealed class UiEvent {
         object Success : UiEvent()

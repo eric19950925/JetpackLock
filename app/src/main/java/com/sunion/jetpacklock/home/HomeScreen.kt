@@ -17,7 +17,11 @@ import com.sunion.jetpacklock.R
 import com.sunion.jetpacklock.account.LoginViewModel
 
 @Composable
-fun HomeScreen(onLogOutClick:() -> Unit, onGetTimeClick:() -> Unit) {
+fun HomeScreen(
+    onLogOutClick:() -> Unit,
+    onGetTimeClick:() -> Unit,
+    onShareClick:() -> Unit
+) {
     val openLogoutDialog = remember { mutableStateOf(false) }
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -31,6 +35,10 @@ fun HomeScreen(onLogOutClick:() -> Unit, onGetTimeClick:() -> Unit) {
                 modifier = Modifier.fillMaxWidth().padding(8.dp),
                 onClick = onGetTimeClick
             ){ Text("Get Time") }
+            Button(
+                modifier = Modifier.fillMaxWidth().padding(8.dp),
+                onClick = onShareClick
+            ){ Text("Share Invitation") }
             Button(
                 modifier = Modifier.fillMaxWidth().padding(8.dp),
                 onClick = {
@@ -72,6 +80,6 @@ fun HomeScreen(onLogOutClick:() -> Unit, onGetTimeClick:() -> Unit) {
 @Preview(showSystemUi = true)
 @Composable
 private fun Preview() {
-    HomeScreen(onLogOutClick = {}, onGetTimeClick = {})
+    HomeScreen(onLogOutClick = {}, onGetTimeClick = {}, onShareClick = {})
 }
 

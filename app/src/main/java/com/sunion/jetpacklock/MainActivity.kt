@@ -62,7 +62,8 @@ fun NavigationComponent(navController: NavHostController) {
                     vm.logOut()
                     navController.navigate("login")
                 },
-                onGetTimeClick = { vm.getTime() }
+                onGetTimeClick = { vm.getTime() },
+                onShareClick = { vm.getShareInvitation() }
             )
         }
     }
