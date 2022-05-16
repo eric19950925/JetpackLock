@@ -1,4 +1,4 @@
-package com.sunion.jetpacklock.domain.usecase
+package com.sunion.jetpacklock.domain.usecase.account
 
 import com.sunion.jetpacklock.api.AccountAPI
 import kotlinx.coroutines.flow.flow

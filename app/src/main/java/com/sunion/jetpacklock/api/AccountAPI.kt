@@ -1,6 +1,6 @@
 package com.sunion.jetpacklock.api
 
-import com.sunion.jetpacklock.domain.usecase.TimeResponse
+import com.sunion.jetpacklock.domain.usecase.account.TimeResponse
 import okhttp3.RequestBody
 import retrofit2.http.*
 
@@ -8,7 +8,7 @@ interface AccountAPI {
     @POST("user/delete")
     suspend fun deleteUser(
         @Header("Authorization") idToken: String,
-//        @Body postBody: RequestBody
+        @Body postBody: RequestBody
         )
 
     @POST("app-notification")

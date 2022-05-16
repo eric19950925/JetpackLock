@@ -7,12 +7,15 @@ import com.amazonaws.mobile.client.Callback
 import com.amazonaws.mobile.client.UserStateDetails
 import com.google.gson.GsonBuilder
 import com.sunion.jetpacklock.api.AccountAPI
+import com.sunion.jetpacklock.data.PreferenceStorage
+import com.sunion.jetpacklock.data.PreferenceStore
 import com.sunion.jetpacklock.domain.repository.AuthRepository
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -68,11 +71,17 @@ object AppModule {
         .build()
         .create(AccountAPI::class.java)
 
+    @Provides
+    @Singleton
+    fun provideCognitoRepository(awsMobileClient: AWSMobileClient): AuthRepository =
+        CognitoAuthRepository(awsMobileClient, Dispatchers.IO)
+
     @InstallIn(SingletonComponent::class)
     @Module
     abstract class Bind {
+//        @Binds
+//        abstract fun bindCognitoRepository(authRepository: CognitoAuthRepository): AuthRepository
         @Binds
-        abstract fun bindCognitoRepository(authRepository: CognitoAuthRepository): AuthRepository
-
+        abstract fun bindPreferenceStore(preferenceStorage: PreferenceStorage): PreferenceStore
     }
 }

@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.runtime.Composable
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -11,7 +12,15 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.sunion.jetpacklock.account.AccountNavigation
 import com.sunion.jetpacklock.account.LoginViewModel
+import com.sunion.jetpacklock.account_management.AccountScreen
+import com.sunion.jetpacklock.account_management.MemberManagementRoute
+import com.sunion.jetpacklock.account_management.MemberManagementViewModel
+import com.sunion.jetpacklock.account_management.memberGraph
+import com.sunion.jetpacklock.home.HomeNavHost
+import com.sunion.jetpacklock.home.HomeRoute
 import com.sunion.jetpacklock.home.HomeScreen
+import com.sunion.jetpacklock.home.HomeViewModel
+import com.sunion.jetpacklock.ui.theme.FuhsingSmartLockV2AndroidTheme
 import com.sunion.jetpacklock.welcome.WelcomeScreen
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -21,7 +30,9 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             val navController = rememberNavController()
-            NavigationComponent(navController)
+            FuhsingSmartLockV2AndroidTheme {
+                NavigationComponent(navController)
+            }
         }
     }
     companion object {
@@ -44,6 +55,9 @@ fun NavigationComponent(navController: NavHostController) {
                 },
                 toLogin = {
                     navController.navigate("login")
+                },
+                logOut = {
+                    vm.logOut()
                 }
             )
         }
@@ -52,18 +66,14 @@ fun NavigationComponent(navController: NavHostController) {
                 onLoginSuccess= {
                     vm.setAttachPolicy()
                     navController.navigate("home")
-                                },
-                vm
+                                }
             )
         }
         composable("home") {
-            HomeScreen(
-                onLogOutClick = {
-                    vm.logOut()
+            HomeNavHost(
+                onLogoutClick = {
                     navController.navigate("login")
-                },
-                onGetTimeClick = { vm.getTime() },
-                onShareClick = { vm.getShareInvitation() }
+                }
             )
         }
     }

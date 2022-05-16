@@ -1,4 +1,4 @@
-package com.sunion.jetpacklock.domain.usecase
+package com.sunion.jetpacklock.domain.usecase.account
 
 import com.google.gson.Gson
 import com.sunion.jetpacklock.MainActivity
@@ -12,12 +12,14 @@ class ShareInvitationUseCase @Inject constructor(private val accountAPI: Account
     private val gson = Gson()
     private val MEDIA_TYPE_JSON = MainActivity.CONTENT_TYPE_JSON.toMediaType()
     val mSetNotifyPayload = InvitationPayload(
-        Share = arrayOf(ShareContent(
+        Share = arrayOf(
+            ShareContent(
             Resource = ResourceContent(
                 DeviceIdentity = "c7310620-9fb3-42f5-b75f-2e8b6393ddcd",//postman - thing name
                 ResourceDirectory = ""
             ),
-            Attributes = AttributesContent(UserRole = "Manager"))
+            Attributes = AttributesContent(UserRole = "Manager")
+            )
         ),
         clientToken = "AAA"
     )

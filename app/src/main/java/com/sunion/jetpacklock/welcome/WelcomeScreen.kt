@@ -1,5 +1,6 @@
 package com.sunion.jetpacklock.welcome
 
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.MutableTransitionState
@@ -14,6 +15,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -29,13 +31,17 @@ fun WelcomeScreen (
     viewModel: LoginViewModel,
     toHome: () -> Unit,
     toLogin: () -> Unit,
+    logOut: () -> Unit
 ){
     WelcomeScreen()
 
     LaunchedEffect(key1 = Unit) {
         while (true) {
             delay(2000)
-            if(viewModel.checkSignedIn()) toHome() else toLogin()
+            viewModel.checkSignedIn(
+                onSuccess = toHome,
+                onFailure = toLogin
+            )
         }
     }
 }
@@ -53,6 +59,7 @@ fun WelcomeScreen (){
         enter = scaleIn(
             animationSpec = tween(durationMillis = 2000), 0f, TransformOrigin.Center
         ),
+        modifier = Modifier.background(Color.White)
     ) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Image(

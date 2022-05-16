@@ -7,4 +7,14 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="blue_info">#007AFF</color>
+    <color name="redE60a17">#e60a17</color>
+    <color name="grayACBECA">#acbeca</color>
+    <color name="popup_text">#707070</color>
+    <color name="primary">#074B7D</color>
+    <color name="primaryVariant">#7496AF</color>
+    <color name="system_ui_scrim_light">#B3FFFFFF</color> <!-- 70% white -->
+    <color name="button_disable">#979797</color>
+    <color name="disable_grey">#EAEAEA</color>
+    <color name="light_primary">#EFF3F5</color>
 </resources>

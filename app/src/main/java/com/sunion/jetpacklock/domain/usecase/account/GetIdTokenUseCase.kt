@@ -1,4 +1,4 @@
-package com.sunion.jetpacklock.domain.usecase
+package com.sunion.jetpacklock.domain.usecase.account
 
 import com.sunion.jetpacklock.domain.repository.AuthRepository
 import javax.inject.Inject
