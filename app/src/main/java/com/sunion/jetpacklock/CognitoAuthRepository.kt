@@ -72,6 +72,7 @@ class CognitoAuthRepository @Inject constructor(
             }
         }
         mobileClient.signOut(SignOutOptions.builder().build(), callback)
+        mobileClient.refresh()//todo how to clean cache
         awaitClose()
     }
 

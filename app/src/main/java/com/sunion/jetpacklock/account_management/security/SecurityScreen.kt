@@ -25,7 +25,8 @@ import kotlinx.coroutines.flow.collect
 fun SecurityScreen(
     viewModel: SecurityViewModel,
     navController: NavController,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onSignOutSuccess: () -> Unit
 ) {
     val context = LocalContext.current
     LaunchedEffect(key1 = Unit) {
@@ -37,7 +38,7 @@ fun SecurityScreen(
                 {
                     viewModel.logOut()
                     Toast.makeText(context, "SignOutAllSuccess", Toast.LENGTH_SHORT).show()
-                    navController.navigate(MemberManagementRoute.LogIn.route)
+                    onSignOutSuccess.invoke()
                 }
             }
         }

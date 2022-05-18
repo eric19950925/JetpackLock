@@ -63,13 +63,13 @@ class MemberManagementViewModel @Inject constructor(
 
     @OptIn(FlowPreview::class)
     fun deleteAccount() {
-//        if (deleteAccountConfirmText.value != "Delete") {
-//            viewModelScope.launch {
-//                _alertMessage.value =
-//                    application.getString(R.string.member_failed_to_delete_account)
-//            }
-//            return
-//        }
+        if (deleteAccountConfirmText.value != "Delete") {
+            viewModelScope.launch {
+                _alertMessage.value =
+                    application.getString(R.string.member_failed_to_delete_account)
+            }
+            return
+        }
 
         deleteAccountUseCase(deleteAccountConfirmText.value)
             .flowOn(Dispatchers.IO)

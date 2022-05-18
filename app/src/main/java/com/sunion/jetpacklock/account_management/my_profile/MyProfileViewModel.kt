@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.sunion.jetpacklock.domain.repository.AuthRepository
 import com.sunion.jetpacklock.domain.usecase.account.ChangeNameUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -30,7 +31,7 @@ class MyProfileViewModel @Inject constructor(
     val saveSuccess: State<Boolean?> = _saveSuccess
 
     fun loadData() {
-        viewModelScope.launch {
+        viewModelScope.launch (Dispatchers.Main){ //todo note it
             _isLoading.value = true
             try {
                 _username.value = authRepository.getName().singleOrNull() ?: ""

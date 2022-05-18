@@ -45,7 +45,11 @@ fun AccountScreen(
         viewModel.uiEvent.collect { event ->
             when (event) {
                 MemberManagementViewModel.UiEvent.SignOutSuccess -> onSignOutSuccess()
-                MemberManagementViewModel.UiEvent.DeleteAccountSuccess -> onSignOutSuccess()//todo
+                MemberManagementViewModel.UiEvent.DeleteAccountSuccess -> {
+                    viewModel.logOut()
+
+                    onSignOutSuccess()
+                }
             }
         }
     }
