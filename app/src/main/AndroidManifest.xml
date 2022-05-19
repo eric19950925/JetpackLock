@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.sunion.jetpacklock">
+    package="com.sunion.ikeyconnect">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
-        android:name=".HiltApplication"
+        android:name="com.sunion.ikeyconnect.HiltApplication"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
@@ -13,7 +13,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.JetpackLock">
         <activity
-            android:name=".MainActivity"
+            android:name="com.sunion.ikeyconnect.MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -22,7 +22,7 @@
             </intent-filter>
         </activity>
         <activity
-            android:name="com.sunion.jetpacklock.account.AccountActivity"
+            android:name="com.sunion.ikeyconnect.account.AccountActivity"
             android:exported="false"
             android:screenOrientation="portrait" />
     </application>

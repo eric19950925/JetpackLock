@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <resources>
-    <string name="app_name">JetpackLock</string>
+    <string name="app_name">iKey Connect</string>
     <string name="drawer_content_description"><![CDATA[Navigation drawer]]></string>
     <string name="close_drawer_content_description"><![CDATA[Close navigation drawer]]></string>
     <string name="open_drawer_content_description"><![CDATA[Open navigation drawer]]></string>

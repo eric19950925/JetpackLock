@@ -1,0 +1,162 @@
+package com.sunion.ikeyconnect.account
+
+import android.app.Application
+import android.util.Log
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
+import androidx.lifecycle.*
+import com.sunion.ikeyconnect.R
+import com.sunion.ikeyconnect.domain.exception.UsernameException
+import com.sunion.ikeyconnect.domain.exception.UsernameExistsException
+import com.sunion.ikeyconnect.domain.usecase.account.*
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+@HiltViewModel
+class LoginViewModel @Inject constructor(
+    private val savedStateHandle: SavedStateHandle,
+    private val application: Application,
+    private val signIn: SignInUseCase,
+    private val signOut: SignOutUseCase,
+    private val getIdToken: GetIdTokenUseCase,
+    private val setFCMUseCase: SetFCMUseCase,
+    private val getTimeUseCase: GetTimeUseCase,
+    private val isSignedIn: IsSignedInUseCase,
+    private val attachPolicyUseCase: AttachPolicyUseCase,
+    private val shareInvitationUseCase: ShareInvitationUseCase,
+    private val getUserStateDetails: UserStateDetailsUseCase
+) : ViewModel() {
+
+    private val _logger = MutableLiveData<String>("Welcome~\n")
+    val logger: LiveData<String> = _logger
+
+    private val _uiEvent = MutableSharedFlow<UiEvent>()
+    val uiEvent: SharedFlow<UiEvent> = _uiEvent
+
+    private val _loading = mutableStateOf(false)
+    val loading: State<Boolean> = _loading
+
+    private val _email = mutableStateOf(savedStateHandle.get("email") ?: "")
+    val email: State<String> = _email
+
+    private val _emailError = mutableStateOf(savedStateHandle.get("emailError") ?: "")
+    val emailError: State<String> = _emailError
+
+    private val _password = mutableStateOf(savedStateHandle.get("password") ?: "")
+    val password: State<String> = _password
+
+    private val _passwordError = mutableStateOf(savedStateHandle.get("passwordError") ?: "")
+    val passwordError: State<String> = _passwordError
+
+    fun login(){
+        signIn.invoke(email.value?:"",password.value?:"")
+            .flowOn(Dispatchers.IO)
+            .onStart { _loading.value = true }
+            .onCompletion { _loading.value = false }
+            .onEach {
+                viewModelScope.launch {
+                    _uiEvent.emit(UiEvent.Success)
+                    Log.d("TAG", "login $it.")
+                }
+            }
+            .catch { e ->
+                Log.e("TAG", "login failure: $e")
+                if (e is UsernameException)
+                    if (e is UsernameExistsException)
+                        _emailError.value =
+                            application.getString(R.string.account_email_has_been_used)
+                    else
+                        e.message?.let { _emailError.value = it }
+                else
+                    viewModelScope.launch {
+                        _uiEvent.emit(
+                            UiEvent.Fail(e.message ?: "signIn error")
+                        )
+                    }
+            }
+            .launchIn(viewModelScope)
+    }
+
+    fun logOut(){
+        signOut.invoke()
+            .flowOn(Dispatchers.IO)
+            .onEach {
+                viewModelScope.launch {
+                    Log.d("TAG", "logout success.")
+                }
+            }
+            .catch { e ->
+                Log.d("TAG","logOut failure: $e")
+            }
+            .launchIn(viewModelScope)
+    }
+
+    fun setEmail(email: String){
+        _email.value = email
+    }
+    fun setPassword(password: String){
+        _password.value = password
+    }
+    fun cleanLogger(){
+        _logger.value = ""
+    }
+    fun getTime(){
+        getIdToken()
+            .flatMapConcat {
+                getTimeUseCase(it)
+            }
+            .flowOn(Dispatchers.IO)
+            .onEach {
+                Log.d("TAG",it.toString()) }
+            .catch { e -> Log.e("TAG",e.toString()) }
+            .launchIn(viewModelScope)
+    }
+    fun setAttachPolicy(){
+        getIdToken()
+            .flatMapConcat {
+                attachPolicyUseCase(it)
+            }
+            .flowOn(Dispatchers.IO)
+            .onEach {
+                Log.d("TAG",it.toString()) }
+            .catch { e -> Log.e("TAG",e.toString()) }
+            .launchIn(viewModelScope)
+    }
+
+    suspend fun checkSignedIn(onSuccess:()->Unit, onFailure:()->Unit){
+        isSignedIn()
+            .flatMapConcat {
+                getUserStateDetails()
+            }
+            .flowOn(Dispatchers.IO)
+            .catch { e ->
+                Log.e("TAG",e.toString())
+                logOut()
+                onFailure.invoke()
+            }
+            .collectLatest {
+                Log.d("TAG","Get Name Once: "+it.toString())
+                    onSuccess.invoke()
+            }
+    }
+
+    fun getShareInvitation(){
+        getIdToken()
+            .flatMapConcat {
+                shareInvitationUseCase(it)
+            }
+            .flowOn(Dispatchers.IO)
+            .onEach {
+                Log.d("TAG",it.toString()) }
+            .catch { e -> Log.e("TAG",e.toString()) }
+            .launchIn(viewModelScope)
+    }
+
+    sealed class UiEvent {
+        object Success : UiEvent()
+        data class Fail(val message: String) : UiEvent()
+    }
+}
