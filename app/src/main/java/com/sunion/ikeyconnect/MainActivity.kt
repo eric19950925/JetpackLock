@@ -37,8 +37,8 @@ class MainActivity : AppCompatActivity() {
     companion object {
         const val CONTENT_TYPE_JSON = "application/json; charset=utf-8"
         const val AES_KEY = ""
-        const val AES_KEY2 = ""
-        const val AES_KEY3 = ""
+        const val AES_KEY2 = "111"
+        const val AES_KEY3 = "222"
     }
     private fun goLogin() {
         startActivity(Intent(this, AccountActivity::class.java))
