@@ -37,6 +37,7 @@ class MainActivity : AppCompatActivity() {
     companion object {
         const val CONTENT_TYPE_JSON = "application/json; charset=utf-8"
         const val AES_KEY = ""
+        //test fast forward merge
     }
     private fun goLogin() {
         startActivity(Intent(this, AccountActivity::class.java))
