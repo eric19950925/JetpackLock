@@ -1,4 +1,4 @@
-package com.sunion.ikeyconnect.domain.repository
+package com.sunion.ikeyconnect.domain.Interface
 
 import kotlinx.coroutines.flow.Flow
 
@@ -28,7 +28,7 @@ interface AuthRepository {
 
     fun confirmForgotPassword(newPassword: String, confirmCode: String): Flow<Unit>
 
-    fun getAccessToken(): Flow<String>
+    suspend fun getAccessToken(): String
 
     fun getUsername(): String?
 

@@ -9,6 +9,7 @@ import androidx.navigation.compose.rememberNavController
 import com.jakewharton.processphoenix.ProcessPhoenix
 import com.sunion.ikeyconnect.account_management.memberGraph
 import com.sunion.ikeyconnect.R
+import com.sunion.ikeyconnect.add_lock.addLockGraph
 
 @Composable
 fun HomeNavHost(onLogoutClick: () -> Unit) {
@@ -19,7 +20,7 @@ fun HomeNavHost(onLogoutClick: () -> Unit) {
             val viewModel = hiltViewModel<HomeViewModel>()
             HomeScreen(
                 onAddLockClick = {
-
+                    navController.navigate(HomeRoute.AddLock.route)
                 },
                 onPersonClick = {
                     navController.navigate(HomeRoute.MemberManagement.route)
@@ -36,5 +37,16 @@ fun HomeNavHost(onLogoutClick: () -> Unit) {
             }
             ,route = HomeRoute.MemberManagement.route
         )
+        addLockGraph(
+            navController = navController,
+            route = HomeRoute.AddLock.route,
+//            onAddLockFinish = viewModel::boltOrientation
+        )
     }
+}
+
+sealed class HomeRoute(val route: String) {
+    object Home : HomeRoute("MemberHome")
+    object MemberManagement : HomeRoute("MemberManagement")
+    object AddLock : HomeRoute("AddLock")
 }

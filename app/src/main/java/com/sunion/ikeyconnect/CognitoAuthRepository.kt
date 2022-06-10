@@ -10,7 +10,7 @@ import com.amazonaws.services.cognitoidentityprovider.model.UserNotFoundExceptio
 import com.amazonaws.services.cognitoidentityprovider.model.UsernameExistsException
 import com.sunion.ikeyconnect.domain.exception.AuthException
 import com.sunion.ikeyconnect.domain.exception.IKeyException
-import com.sunion.ikeyconnect.domain.repository.AuthRepository
+import com.sunion.ikeyconnect.domain.Interface.AuthRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -179,11 +179,9 @@ class CognitoAuthRepository @Inject constructor(
         }
     }.flowOn(dispatcher)
 
-    override fun getAccessToken(): Flow<String> = flow {
-        val value = runCatching { mobileClient.tokens.accessToken.tokenString }
+    override suspend fun getAccessToken(): String =
+        runCatching { mobileClient.tokens.accessToken.tokenString }
             .getOrElse { throw mappingException(it) }
-        emit(value)
-    }.flowOn(dispatcher)
 
     override fun getUsername(): String? = runCatching { mobileClient.username }.getOrNull()
 

@@ -3,6 +3,7 @@
     package="com.sunion.ikeyconnect">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CAMERA" />
 
     <application
         android:name="com.sunion.ikeyconnect.HiltApplication"

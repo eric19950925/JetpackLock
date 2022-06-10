@@ -114,8 +114,3 @@ private fun Preview3() {
         HomeScreen(onAddLockClick = {}, onPersonClick = {}, showGuile = true) {}
     }
 }
-
-sealed class HomeRoute(val route: String) {
-    object Home : HomeRoute("MemberHome")
-    object MemberManagement : HomeRoute("MemberManagement")
-}

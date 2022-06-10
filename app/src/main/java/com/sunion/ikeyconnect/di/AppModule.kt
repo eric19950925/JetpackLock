@@ -1,4 +1,4 @@
-package com.sunion.ikeyconnect
+package com.sunion.ikeyconnect.di
 
 import android.app.Application
 import android.util.Log
@@ -6,10 +6,12 @@ import com.amazonaws.mobile.client.AWSMobileClient
 import com.amazonaws.mobile.client.Callback
 import com.amazonaws.mobile.client.UserStateDetails
 import com.google.gson.GsonBuilder
+import com.sunion.ikeyconnect.BuildConfig
+import com.sunion.ikeyconnect.CognitoAuthRepository
 import com.sunion.ikeyconnect.api.AccountAPI
 import com.sunion.ikeyconnect.data.PreferenceStorage
 import com.sunion.ikeyconnect.data.PreferenceStore
-import com.sunion.ikeyconnect.domain.repository.AuthRepository
+import com.sunion.ikeyconnect.domain.Interface.AuthRepository
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -81,7 +83,7 @@ object AppModule {
     abstract class Bind {
 //        @Binds
 //        abstract fun bindCognitoRepository(authRepository: CognitoAuthRepository): AuthRepository
-        @Binds
-        abstract fun bindPreferenceStore(preferenceStorage: PreferenceStorage): PreferenceStore
+//        @Binds
+//        abstract fun bindPreferenceStore(preferenceStorage: PreferenceStorage): PreferenceStore
     }
 }

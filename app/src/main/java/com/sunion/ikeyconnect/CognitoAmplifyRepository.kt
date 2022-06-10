@@ -1,7 +1,7 @@
 package com.sunion.ikeyconnect
 
 import com.amazonaws.mobile.client.AWSMobileClient
-import com.sunion.ikeyconnect.domain.repository.AuthRepository
+import com.sunion.ikeyconnect.domain.Interface.AuthRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.*
 import javax.inject.Inject
@@ -56,7 +56,7 @@ class CognitoAmplifyRepository @Inject constructor(
         TODO("Not yet implemented")
     }
 
-    override fun getAccessToken(): Flow<String> {
+    override suspend fun getAccessToken(): String {
         TODO("Not yet implemented")
     }
 
