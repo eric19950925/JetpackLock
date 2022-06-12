@@ -4,6 +4,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import com.polidea.rxandroidble2.RxBleConnection
 import com.polidea.rxandroidble2.RxBleDevice
+import com.sunion.ikeyconnect.domain.model.Event
 import io.reactivex.Observable
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.disposables.Disposable
@@ -21,7 +22,7 @@ interface StatefulConnection {
 
 //    val errorOccupiedCheck: LiveData<Event<String>>
 //
-//    val connectionState: LiveData<Event<Pair<Boolean, String>>>
+    val connectionState: LiveData<Event<Pair<Boolean, String>>>
 //
 //    val bleDevice: MutableLiveData<Event<List<BleDevice>>>
 

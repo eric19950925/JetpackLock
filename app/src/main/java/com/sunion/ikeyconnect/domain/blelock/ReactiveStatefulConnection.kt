@@ -1,15 +1,24 @@
 package com.sunion.ikeyconnect.domain.blelock
 
+import android.os.CountDownTimer
 import android.util.Base64
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import com.polidea.rxandroidble2.RxBleClient
 import com.polidea.rxandroidble2.RxBleConnection
 import com.polidea.rxandroidble2.RxBleDevice
+import com.sunion.ikeyconnect.domain.exception.EmptyLockInfoException
+import com.sunion.ikeyconnect.domain.model.Event
 import com.sunion.ikeyconnect.domain.model.LockConnectionInformation
 import com.sunion.ikeyconnect.domain.usecase.device.BleHandShakeUseCase
 import io.reactivex.Observable
+import io.reactivex.Scheduler
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.disposables.Disposable
+import io.reactivex.functions.BiFunction
+import io.reactivex.schedulers.Schedulers
 import io.reactivex.subjects.PublishSubject
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -18,28 +27,15 @@ class ReactiveStatefulConnection @Inject constructor(
     private val rxBleClient: RxBleClient,
     private val bleHandShakeUseCase: BleHandShakeUseCase
 ) : StatefulConnection{
+    private val _connectionState = MutableLiveData<Event<Pair<Boolean, String>>>()
+    override val connectionState: LiveData<Event<Pair<Boolean, String>>>
+        get() = _connectionState
+    private var _connection: Observable<RxBleConnection>? = null
+//    private val connectionTimer = CountDownTimer(30000, 1000)
 
     fun device(input: String): RxBleDevice {
         return rxBleClient.getBleDevice(input)
     }
-    fun connectWithToken(mLock: LockConnectionInformation, rxBleConnection: RxBleConnection): Observable<String> {
-        val keyOne = Base64.decode(mLock.keyOne, Base64.DEFAULT)
-        val token = if (mLock.permanentToken.isBlank()) {
-            Base64.decode(mLock.oneTimeToken, Base64.DEFAULT)
-        } else {
-            Base64.decode(mLock.permanentToken, Base64.DEFAULT)
-        }
-        val isLockFromSharing =
-            mLock.sharedFrom != null && mLock.sharedFrom.isNotBlank()
-
-        return if (mLock.permanentToken.isBlank()) {
-            bleHandShakeUseCase.connectWithOneTimeToken(mLock, rxBleConnection, keyOne, token, isLockFromSharing)
-        } else {
-            bleHandShakeUseCase.connectWithPermanentToken(keyOne, token, mLock, rxBleConnection, isLockFromSharing)
-        }
-    }
-
-
 
     override val trashBin: CompositeDisposable
         get() = TODO("Not yet implemented")
@@ -52,8 +48,13 @@ class ReactiveStatefulConnection @Inject constructor(
     override val disconnectTriggerSubject: PublishSubject<Boolean>
         get() = TODO("Not yet implemented")
     override var connection: Observable<RxBleConnection>
-        get() = TODO("Not yet implemented")
-        set(value) {}
+        get() {
+            return _connection ?: connectionFallback()
+        }
+        set(value) {
+//            connectionTimer.onClear()
+            this._connection = value
+        }
 
     override fun connectionFallback(): Observable<RxBleConnection> {
         TODO("Not yet implemented")
@@ -64,7 +65,23 @@ class ReactiveStatefulConnection @Inject constructor(
     }
 
     override fun establishConnection(macAddress: String, isSilentlyFail: Boolean): Disposable {
-        TODO("Not yet implemented")
+        val d1 = bleHandShakeUseCase.getLockConnection(macAddress).toObservable()
+        val d2 = device(macAddress)
+                .establishConnection(false)
+        val disposable =
+            Observable.zip(
+                d1, d2, BiFunction { mLock: LockConnectionInformation, rxBleConnect: RxBleConnection ->
+                    bleHandShakeUseCase.connectWithToken(mLock, rxBleConnect)
+                }
+            )
+            .subscribe(
+                {
+                println("Receive: $it")
+
+                },{ it ->
+                    Timber.e(it.toString())
+                })
+        return disposable
     }
 
     override fun establishBleConnectionAndRequestMtu(device: RxBleDevice): Observable<RxBleConnection> {

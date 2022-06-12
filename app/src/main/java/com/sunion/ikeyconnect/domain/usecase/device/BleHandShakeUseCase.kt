@@ -11,6 +11,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import com.polidea.rxandroidble2.RxBleClient
 import com.polidea.rxandroidble2.RxBleConnection
+import com.sunion.ikeyconnect.domain.Interface.LockInformationRepository
 import com.sunion.ikeyconnect.domain.blelock.BleCmdRepository
 import com.sunion.ikeyconnect.domain.blelock.unSignedInt
 import com.sunion.ikeyconnect.domain.exception.NotConnectedException
@@ -18,6 +19,7 @@ import com.sunion.ikeyconnect.domain.model.DeviceToken
 import com.sunion.ikeyconnect.domain.model.LockConnectionInformation
 import com.sunion.ikeyconnect.domain.toHex
 import io.reactivex.Observable
+import io.reactivex.Single
 import io.reactivex.functions.BiFunction
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -25,7 +27,8 @@ import java.util.*
 
 @Singleton
 class BleHandShakeUseCase @Inject constructor(
-    private val mBleCmdRepository: BleCmdRepository
+    private val mBleCmdRepository: BleCmdRepository,
+    private val lockInformationRepository: LockInformationRepository,
 ){
     companion object {
         const val CIPHER_MODE = "AES/ECB/NoPadding"
@@ -39,6 +42,27 @@ class BleHandShakeUseCase @Inject constructor(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
         } else {
             PendingIntent.FLAG_UPDATE_CURRENT
+        }
+    }
+
+    fun getLockConnection(macAddress: String): Single<LockConnectionInformation> {
+        return lockInformationRepository.get(macAddress)
+    }
+
+    fun connectWithToken(mLock: LockConnectionInformation, rxBleConnection: RxBleConnection): Observable<String> {
+        val keyOne = Base64.decode(mLock.keyOne, Base64.DEFAULT)
+        val token = if (mLock.permanentToken.isBlank()) {
+            Base64.decode(mLock.oneTimeToken, Base64.DEFAULT)
+        } else {
+            Base64.decode(mLock.permanentToken, Base64.DEFAULT)
+        }
+        val isLockFromSharing =
+            mLock.sharedFrom != null && mLock.sharedFrom.isNotBlank()
+
+        return if (mLock.permanentToken.isBlank()) {
+            connectWithOneTimeToken(mLock, rxBleConnection, keyOne, token, isLockFromSharing)
+        } else {
+            connectWithPermanentToken(keyOne, token, mLock, rxBleConnection, isLockFromSharing)
         }
     }
 
