@@ -9,6 +9,7 @@ import io.reactivex.Observable
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.disposables.Disposable
 import io.reactivex.subjects.PublishSubject
+import kotlinx.coroutines.flow.SharedFlow
 
 interface StatefulConnection {
 
@@ -22,7 +23,7 @@ interface StatefulConnection {
 
 //    val errorOccupiedCheck: LiveData<Event<String>>
 //
-    val connectionState: LiveData<Event<Pair<Boolean, String>>>
+    val connectionState: SharedFlow<Event<Pair<Boolean, String>>>
 //
 //    val bleDevice: MutableLiveData<Event<List<BleDevice>>>
 

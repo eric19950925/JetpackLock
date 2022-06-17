@@ -18,9 +18,13 @@ import com.sunion.ikeyconnect.ui.theme.FuhsingSmartLockV2AndroidTheme
 import com.sunion.ikeyconnect.welcome.WelcomeScreen
 import dagger.hilt.android.AndroidEntryPoint
 import com.sunion.ikeyconnect.R
+import com.sunion.ikeyconnect.domain.blelock.StatefulConnection
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
+    @Inject
+    lateinit var statefulConnection: StatefulConnection
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {

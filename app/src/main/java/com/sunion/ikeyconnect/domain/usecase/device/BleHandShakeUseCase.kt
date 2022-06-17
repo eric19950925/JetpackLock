@@ -3,25 +3,24 @@ package com.sunion.ikeyconnect.domain.usecase.device
 import android.app.PendingIntent
 import android.os.Build
 import android.util.Base64
-import android.util.Log
 import androidx.annotation.VisibleForTesting
-import androidx.lifecycle.viewModelScope
 import com.polidea.rxandroidble2.NotificationSetupMode
 import javax.inject.Inject
 import javax.inject.Singleton
-import com.polidea.rxandroidble2.RxBleClient
 import com.polidea.rxandroidble2.RxBleConnection
 import com.sunion.ikeyconnect.domain.Interface.LockInformationRepository
 import com.sunion.ikeyconnect.domain.blelock.BleCmdRepository
+import com.sunion.ikeyconnect.domain.blelock.ReactiveStatefulConnection
 import com.sunion.ikeyconnect.domain.blelock.unSignedInt
 import com.sunion.ikeyconnect.domain.exception.NotConnectedException
 import com.sunion.ikeyconnect.domain.model.DeviceToken
+import com.sunion.ikeyconnect.domain.model.DeviceToken.DeviceTokenState.VALID_TOKEN
 import com.sunion.ikeyconnect.domain.model.LockConnectionInformation
 import com.sunion.ikeyconnect.domain.toHex
 import io.reactivex.Observable
 import io.reactivex.Single
 import io.reactivex.functions.BiFunction
-import kotlinx.coroutines.launch
+import io.reactivex.schedulers.Schedulers
 import timber.log.Timber
 import java.util.*
 
@@ -49,40 +48,103 @@ class BleHandShakeUseCase @Inject constructor(
         return lockInformationRepository.get(macAddress)
     }
 
-    fun connectWithToken(mLock: LockConnectionInformation, rxBleConnection: RxBleConnection): Observable<String> {
-        val keyOne = Base64.decode(mLock.keyOne, Base64.DEFAULT)
-        val token = if (mLock.permanentToken.isBlank()) {
-            Base64.decode(mLock.oneTimeToken, Base64.DEFAULT)
+    fun invoke(
+        input1: LockConnectionInformation,
+        deviceMacAddress: String,
+        deviceName: String?,
+        input3: RxBleConnection
+    ): Observable<String> {
+        val keyOne = Base64.decode(input1.keyOne, Base64.DEFAULT)
+        val isLockFromSharing = input1.sharedFrom != null && input1.sharedFrom?.isNotBlank() ?: false
+        return if (input1.permanentToken.isBlank()) {
+            Timber.d("exchange one time token")
+            val oneTimeToken = Base64.decode(input1.oneTimeToken, Base64.DEFAULT)
+            exchangeOneTimeToken(
+                deviceMacAddress = deviceMacAddress,
+                deviceName = deviceName,
+                connection = input3,
+                keyOne = keyOne,
+                oneTimeToken = oneTimeToken,
+                isLockFromSharing = isLockFromSharing
+            )
         } else {
-            Base64.decode(mLock.permanentToken, Base64.DEFAULT)
-        }
-        val isLockFromSharing =
-            mLock.sharedFrom != null && mLock.sharedFrom.isNotBlank()
-
-        return if (mLock.permanentToken.isBlank()) {
-            connectWithOneTimeToken(mLock, rxBleConnection, keyOne, token, isLockFromSharing)
-        } else {
-            connectWithPermanentToken(keyOne, token, mLock, rxBleConnection, isLockFromSharing)
+            Timber.d("exchange permanent token")
+            val permanentToken = Base64.decode(input1.permanentToken, Base64.DEFAULT)
+            exchangePermanentToken(
+                keyOne = keyOne,
+                token = permanentToken,
+                deviceMacAddress = deviceMacAddress,
+                deviceName = deviceName,
+                connection = input3,
+                isLockFromSharing = isLockFromSharing
+            )
         }
     }
 
-    fun connectWithOneTimeToken(
-        mLock: LockConnectionInformation,
-        rxBleConnection: RxBleConnection,
+    fun exchangePermanentToken(
+        keyOne: ByteArray,
+        token: ByteArray,
+        deviceMacAddress: String,
+        deviceName: String?,
+        connection: RxBleConnection,
+        isLockFromSharing: Boolean
+    ): Observable<String> {
+        return sendC0(connection, keyOne, token)
+            .flatMap { keyTwo ->
+                sendC1(connection, keyTwo, token, isLockFromSharing)
+                    .filter { it.first == VALID_TOKEN }
+                    .flatMap { stateAndPermission ->
+                        connection
+                            .setupNotification(
+                                ReactiveStatefulConnection.NOTIFICATION_CHARACTERISTIC,
+                                NotificationSetupMode.DEFAULT
+                            ) // receive [C1], [D6] only
+                            .flatMap { it }
+                            .map { keyTwo to it }
+                            .take(1)
+                            .doOnNext { _ ->
+                                Timber.d("received receive [C1], [D6] in exchange permanent token")
+                                lockInformationRepository
+                                    .get(deviceMacAddress)
+                                    .doOnSuccess { lockConnection ->
+                                        saveConnectionInformation(
+                                            lockConnection.copy(
+                                                keyTwo = Base64.encodeToString(
+                                                    keyTwo,
+                                                    Base64.DEFAULT
+                                                ),
+                                                deviceName = deviceName ?: "",
+                                                permission = stateAndPermission.second
+                                            )
+                                        )
+                                        Timber.d("update key two successful")
+                                    }
+                                    .subscribeOn(Schedulers.single())
+                                    .subscribe()
+                            }
+                            .flatMap { Observable.just(stateAndPermission.second) }
+                    }
+            }
+    }
+
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    fun exchangeOneTimeToken(
+        deviceMacAddress: String,
+        deviceName: String?,
+        connection: RxBleConnection,
         keyOne: ByteArray,
         oneTimeToken: ByteArray,
         isLockFromSharing: Boolean
     ): Observable<String> {
-        return sendC0(rxBleConnection, keyOne, oneTimeToken)
+        return sendC0(connection, keyOne, oneTimeToken)
             .flatMap { keyTwo ->
-                Log.d("TAG","get k2")
-                sendC1(rxBleConnection, keyTwo, oneTimeToken, isLockFromSharing)
+                sendC1(connection, keyTwo, oneTimeToken, isLockFromSharing)
                     .take(1)
                     .filter { it.first == DeviceToken.ONE_TIME_TOKEN || it.first == DeviceToken.VALID_TOKEN }
                     .flatMap { stateAndPermission ->
-                        rxBleConnection
+                        connection
                             .setupNotification(
-                                NOTIFICATION_CHARACTERISTIC,
+                                ReactiveStatefulConnection.NOTIFICATION_CHARACTERISTIC,
                                 NotificationSetupMode.DEFAULT
                             )
                             .flatMap { it }
@@ -103,9 +165,43 @@ class BleHandShakeUseCase @Inject constructor(
                                     } ?: throw NotConnectedException()
                                 keyTwo to token
                             }
-                            .doOnNext { pair -> //todo
-//                                Timber.d("received receive [C1], [E5], [D6] in exchange one time token")
-//                                updateLockInfo(mLock, pair.first, pair.second as DeviceToken.PermanentToken)
+                            .doOnNext { pair ->
+                                Timber.d("received receive [C1], [E5], [D6] in exchange one time token")
+                                val token = pair.second
+                                if (token is DeviceToken.PermanentToken) {
+                                    lockInformationRepository
+                                        .get(deviceMacAddress)
+                                        .doOnSuccess { lockConnection ->
+                                            saveConnectionInformation(
+                                                LockConnectionInformation(
+                                                    macAddress = deviceMacAddress,
+                                                    displayName = lockConnection.displayName,
+                                                    deviceName = deviceName ?: "",
+                                                    keyOne = Base64.encodeToString(
+                                                        keyOne,
+                                                        Base64.DEFAULT
+                                                    ),
+                                                    keyTwo = Base64.encodeToString(
+                                                        pair.first,
+                                                        Base64.DEFAULT
+                                                    ),
+                                                    oneTimeToken = Base64.encodeToString(
+                                                        oneTimeToken,
+                                                        Base64.DEFAULT
+                                                    ),
+                                                    permanentToken = token.token,
+                                                    isOwnerToken = token.isOwner,
+                                                    tokenName = token.name,
+                                                    permission = token.permission,
+                                                    index = lockConnection.index,
+                                                    model = lockConnection.model
+                                                )
+                                            )
+                                            Timber.d("update key two successful")
+                                        }
+                                        .subscribeOn(Schedulers.single())
+                                        .subscribe()
+                                }
                             }
                             .flatMap { pair ->
                                 val token = pair.second
@@ -115,68 +211,56 @@ class BleHandShakeUseCase @Inject constructor(
             }
     }
 
-    fun connectWithPermanentToken(
-        keyOne: ByteArray,
-        token: ByteArray,
-        mLock: LockConnectionInformation,
-        rxBleConnection: RxBleConnection,
-        isLockFromSharing: Boolean)
-            : Observable<String>{
-        return  sendC0(rxBleConnection, keyOne, token)
-            .flatMap { keyTwo ->
-                Log.d("TAG","get k2")
-                sendC1(rxBleConnection, keyTwo, token, isLockFromSharing)
-                    .filter { it.first == DeviceToken.VALID_TOKEN }
-                    .flatMap { stateAndPermission ->
-                        rxBleConnection
-                            .setupNotification(
-                                NOTIFICATION_CHARACTERISTIC,
-                                NotificationSetupMode.DEFAULT
-                            ) // receive [C1], [D6] only
-                            .flatMap { it }
-                            .map { keyTwo to it }
-                            .take(1)
-                            .doOnNext { pair ->
-//                                Timber.d("received receive [C1], [D6] in exchange permanent token")
-//                                viewModelScope.launch { mCharacteristicValue.value = "PermanentToken" to pair }
-//                                viewModelScope.launch {repository.LockUpdate(mLock.copy(
-//                                    keyTwo = Base64.encodeToString(
-//                                        keyTwo,
-//                                        Base64.DEFAULT
-//                                    ),
-//                                    deviceName = mLock.deviceName ,
-//                                    permission = stateAndPermission.second
-//                                ))}
-                            }
-                            .flatMap { Observable.just(stateAndPermission.second) }
-                    }
-            }
-
-    }
-
-    private fun sendC0(
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    fun sendC0(
         rxConnection: RxBleConnection,
         keyOne: ByteArray,
         token: ByteArray
     ): Observable<ByteArray> {
         return Observable.zip(
-            setupC0Notify(rxConnection, keyOne),
-            sendC00(rxConnection, keyOne, token),
+            rxConnection.setupNotification(
+                ReactiveStatefulConnection.NOTIFICATION_CHARACTERISTIC,
+                NotificationSetupMode.DEFAULT
+            )
+                .flatMap { notification -> notification }
+                .filter { notification ->
+                    val decrypted = mBleCmdRepository.decrypt(
+                        keyOne,
+                        notification
+                    )
+                    println("filter [C0] decrypted: ${decrypted?.toHex()}")
+                    decrypted?.component3()?.unSignedInt() == 0xC0
+                },
+            rxConnection.writeCharacteristic(
+                ReactiveStatefulConnection.NOTIFICATION_CHARACTERISTIC,
+                mBleCmdRepository.createCommand(0xC0, keyOne, token)
+            ).toObservable(),
             BiFunction { notification: ByteArray, written: ByteArray ->
                 val randomNumberOne = mBleCmdRepository.resolveC0(keyOne, written)
-                Log.d("TAG", "[C0] has written: ${written.toHex()}")
-                Log.d("TAG", "[C0] has notified: ${notification.toHex()}")
+                Timber.d("[C0] has written: ${written.toHex()}")
+                Timber.d("[C0] has notified: ${notification.toHex()}")
                 val randomNumberTwo = mBleCmdRepository.resolveC0(keyOne, notification)
-                Log.d("TAG", "randomNumberTwo: ${randomNumberTwo.toHex()}")
-                val keyTwo = mBleCmdRepository.generateKeyTwo(
+                Timber.d("randomNumberTwo: ${randomNumberTwo.toHex()}")
+                val keyTwo = generateKeyTwo(
                     randomNumberOne = randomNumberOne,
                     randomNumberTwo = randomNumberTwo
                 )
-                Log.d("TAG", "keyTwo: ${keyTwo.toHex()}")
+                Timber.d("keyTwo: ${keyTwo.toHex()}")
                 keyTwo
-            })
+            }
+        )
     }
-    private fun sendC1(
+
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    fun generateKeyTwo(randomNumberOne: ByteArray, randomNumberTwo: ByteArray): ByteArray {
+        val keyTwo = ByteArray(16)
+        for (i in 0..15) keyTwo[i] =
+            ((randomNumberOne[i].unSignedInt()) xor (randomNumberTwo[i].unSignedInt())).toByte()
+        return keyTwo
+    }
+
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    fun sendC1(
         rxConnection: RxBleConnection,
         keyTwo: ByteArray,
         token: ByteArray,
@@ -184,7 +268,7 @@ class BleHandShakeUseCase @Inject constructor(
     ): Observable<Pair<Int, String>> {
         return Observable.zip(
             rxConnection.setupNotification(
-                NOTIFICATION_CHARACTERISTIC,
+                ReactiveStatefulConnection.NOTIFICATION_CHARACTERISTIC,
                 NotificationSetupMode.DEFAULT
             )
                 .flatMap { notification -> notification }
@@ -193,55 +277,24 @@ class BleHandShakeUseCase @Inject constructor(
                         ?.unSignedInt() == 0xC1
                 },
             rxConnection.writeCharacteristic(
-                NOTIFICATION_CHARACTERISTIC,
+                ReactiveStatefulConnection.NOTIFICATION_CHARACTERISTIC,
                 mBleCmdRepository.createCommand(0xC1, keyTwo, token)
             ).toObservable(),
             BiFunction { notification: ByteArray, written: ByteArray ->
-                //                Timber.d("[C1] has written: ${written.toHex()}")
-                //                Timber.d("[C1] has notified: ${notification.toHex()}")
+                Timber.d("[C1] has written: ${written.toHex()}")
+                Timber.d("[C1] has notified: ${notification.toHex()}")
                 val tokenStateFromDevice = mBleCmdRepository.resolveC1(keyTwo, notification)
-                //                Timber.d("token state from device : ${tokenStateFromDevice.toHex()}")
+                Timber.d("token state from device : ${tokenStateFromDevice.toHex()}")
                 val deviceToken = mBleCmdRepository.determineTokenState(tokenStateFromDevice, isLockFromSharing)
-                //                Timber.d("token state: ${token.toHex()}")
+                Timber.d("token state: ${token.toHex()}")
                 val permission = mBleCmdRepository.determineTokenPermission(tokenStateFromDevice)
-                //                Timber.d("token permission: $permission")
+                Timber.d("token permission: $permission")
                 deviceToken to permission
             }
         )
     }
-
-    private fun setupC0Notify(
-        rxConnection: RxBleConnection,
-        keyOne: ByteArray
-    ): Observable<ByteArray> {
-        return rxConnection.setupNotification(
-            NOTIFICATION_CHARACTERISTIC
-        ).flatMap {
-                notification -> notification
-        }.filter { notification ->
-            val decrypted = mBleCmdRepository.decrypt(
-                keyOne,
-                notification
-            )
-            println("filter [C0] decrypted: ${decrypted?.toHex()}")
-            decrypted?.component3()?.unSignedInt() == 0xC0
-        }
+    fun saveConnectionInformation(information: LockConnectionInformation) {
+        Timber.d("Save connection information: $information")
+        lockInformationRepository.save(information)
     }
-
-
-    private fun sendC00(
-        rxConnection: RxBleConnection,
-        keyOne: ByteArray,
-        token: ByteArray
-    ): Observable<ByteArray>  {
-//    ): Disposable  {
-        val writeC0 = mBleCmdRepository.createCommand(0xC0, keyOne, token)
-        Log.d("TAG", "writeC0 ${writeC0.toHex()}")
-        return rxConnection.writeCharacteristic(NOTIFICATION_CHARACTERISTIC, writeC0)
-            .toObservable()
-//            .subscribe{
-//                Log.d("TAG", "written C0 ${it.toHex()}")
-//            }
-    }
-
 }

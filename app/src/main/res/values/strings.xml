@@ -374,4 +374,15 @@ QR-Code on the lock]]></string>
     <string name="member_please_enter_password"><![CDATA[Please enter password]]></string>
     <string name="member_failed_to_delete_account"><![CDATA[Failed to delete account]]></string>
     <string name="member_failed_to_log_out"><![CDATA[Failure to log out]]></string>
+    <string name="connect_to_wifi_title"><![CDATA[Connect to Wi-Fi]]></string>
+    <string name="connect_to_wifi_select_wifi_network"><![CDATA[Select your 2.4GHz Wi-Fi Network]]></string>
+    <string name="connect_to_wifi_available_networks"><![CDATA[AVAILABLE NETWORKS]]></string>
+    <string name="connect_to_wifi_skip"><![CDATA[Skip]]></string>
+    <string name="connect_to_wifi_enter_your_password"><![CDATA[Enter Your Password]]></string>
+    <string name="connect_to_wifi_please_enter_your_wifi_password"><![CDATA[Please enter your wi-fi password]]></string>
+    <string name="connect_to_wifi_loading"><![CDATA[Loading…]]></string>
+    <string name="connect_to_wifi_disconnection"><![CDATA[Disconnection]]></string>
+    <string name="connect_to_wifi_lose_bluetooth_connection"><![CDATA[You have lost Bluetooth connection. Please reset the lock.]]></string>
+    <string name="connect_to_wifi_password"><![CDATA[Password]]></string>
+    <string name="connect_to_wifi_connect"><![CDATA[Connect]]></string>
 </resources>

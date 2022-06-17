@@ -30,12 +30,12 @@ class SaveLockInfoUseCase @Inject constructor(
             index = 0
         )
 
-        if (runCatching {
-                lockInformationRepository.get(information.macAddress)
-                    .toObservable().asFlow().single()
-            }.getOrNull() != null
-        )
-            throw LockAlreadyExistedException()
+//        if (runCatching {
+//                lockInformationRepository.get(information.macAddress)
+//                    .toObservable().asFlow().single()
+//            }.getOrNull() != null
+//        )
+//            throw LockAlreadyExistedException()
 
         val displayIndex =
             runCatching {

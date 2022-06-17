@@ -14,6 +14,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Devices
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.sunion.ikeyconnect.R
 import com.sunion.ikeyconnect.ui.theme.FuhsingSmartLockV2AndroidTheme
 import com.sunion.ikeyconnect.ui.theme.colorPrimaryMediumSize18
@@ -23,6 +24,7 @@ import kotlinx.coroutines.launch
 fun HomeScreen(
     onAddLockClick: () -> Unit,
     onPersonClick: () -> Unit,
+    onLockClick: () -> Unit,
     showGuile: Boolean,
     modifier: Modifier = Modifier,
     onShowGuideClick: () -> Unit
@@ -82,6 +84,12 @@ fun HomeScreen(
                     text = stringResource(id = R.string.add_lock_no_locks),
                     style = MaterialTheme.typography.colorPrimaryMediumSize18
                 )
+                Button(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    onClick = onLockClick
+                ){ Text("7B126A") }
             }
         }
     }
@@ -94,7 +102,7 @@ fun HomeScreen(
 @Composable
 private fun Preview() {
     FuhsingSmartLockV2AndroidTheme {
-        HomeScreen(onAddLockClick = {}, onPersonClick = {}, showGuile = true) {}
+        HomeScreen(onAddLockClick = {}, onPersonClick = {}, onLockClick = {}, showGuile = true) {}
     }
 }
 
@@ -102,7 +110,7 @@ private fun Preview() {
 @Composable
 private fun Preview2() {
     FuhsingSmartLockV2AndroidTheme {
-        HomeScreen(onAddLockClick = {}, onPersonClick = {}, showGuile = false) {}
+        HomeScreen(onAddLockClick = {}, onPersonClick = {}, onLockClick = {}, showGuile = false) {}
     }
 }
 
@@ -111,6 +119,6 @@ private fun Preview2() {
 @Composable
 private fun Preview3() {
     FuhsingSmartLockV2AndroidTheme {
-        HomeScreen(onAddLockClick = {}, onPersonClick = {}, showGuile = true) {}
+        HomeScreen(onAddLockClick = {}, onPersonClick = {}, onLockClick = {}, showGuile = true) {}
     }
 }

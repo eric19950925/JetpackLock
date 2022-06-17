@@ -1,12 +1,10 @@
 package com.sunion.ikeyconnect.add_lock.pairing
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sunion.ikeyconnect.LockProvider
 import com.sunion.ikeyconnect.domain.Interface.Lock
 import javax.inject.Inject
-import com.sunion.ikeyconnect.domain.blelock.ReactiveStatefulConnection
 import com.sunion.ikeyconnect.domain.exception.ConnectionTokenException
 import com.sunion.ikeyconnect.domain.model.Event
 import com.sunion.ikeyconnect.domain.model.EventState
@@ -17,7 +15,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import timber.log.Timber
 
 @HiltViewModel
@@ -45,38 +42,60 @@ class PairingViewModel @Inject constructor(
         flow { emit(lockProvider.getLockByMacAddress(macAddress)) }
             .onEach {
                 lock = it
-//                _uiState.update { state -> state.copy(lockIsWifi = lock is WifiLock) }
+                _uiState.update { state -> state.copy(lockIsWifi = lock is WifiLock) }
             }
-//            .flatMapConcat { it!!.connectionState }
-//            .flowOn(Dispatchers.IO)
-//            .onEach { event ->
-//                val lock = lock ?: return@onEach
-//                Timber.d("event status:${event.status} data:${event.data} message:${event.message}")
-//                val connectionState = PairingUiState.from(event)
-//                _uiState.update { state -> state.copy(connectionState = connectionState) }
-//
-//                when (event.message) {
-//                    ConnectionTokenException.DeviceRefusedException::class.java.simpleName,
-//                    ConnectionTokenException.IllegalTokenException::class.java.simpleName -> {
-//                        _uiEvent.emit(PairingUiEvent.UserNoPermissionAccessLock)
+            .flatMapConcat { it!!.connectionState }
+            .flowOn(Dispatchers.IO)
+            .onEach { event ->
+                val lock = lock ?: return@onEach
+                Timber.d("event status:${event.status} data:${event.data} message:${event.message}")
+
+                //todo Observer is here
+                val connectionState = PairingUiState.from(event)
+                _uiState.update { state -> state.copy(connectionState = connectionState) }
+
+                when (event.message) {
+                    ConnectionTokenException.DeviceRefusedException::class.java.simpleName,
+                    ConnectionTokenException.IllegalTokenException::class.java.simpleName -> {
+                        _uiEvent.emit(PairingUiEvent.UserNoPermissionAccessLock)
 //                        deleteLock()
-//                    }
-//                }
-//
-//                if (connectionState == PairingUiState.ConnectionState.Done) {
+                    }
+                }
+
+                if (connectionState == PairingUiState.ConnectionState.Done) {
 //                    setLockTime(lock)
 //                    cacheDefaultLockName(lock)
-//                    event.data?.let { (isConnected, _) ->
-//                        if (isConnected)
-//                            _uiState.update { it.copy(shouldShowNext = lock.lockInfo?.isOwnerToken?: return@let) }
-//                    }
-//                }
-//            }
+                    event.data?.let { (isConnected, _) ->
+                        if (isConnected)
+                            _uiState.update { it.copy(shouldShowNext = lock.lockInfo.isOwnerToken) }
+                    }
+                }
+            }
             .catch { Timber.e(it) }
             .launchIn(viewModelScope)
 
 //        collectBluetoothAvailableState()
     }
+
+
+//    private fun collectBluetoothAvailableState() {
+//        BluetoothAvailableStateCollector
+//            .collectState()
+//            .flowOn(Dispatchers.IO)
+//            .onEach { state ->
+//                if (state == BluetoothAvailableState.LOCATION_PERMISSION_NOT_GRANTED) {
+//                    _uiState.update { it.copy(isBlueToothAvailable = isBlueToothEnabledUseCase()) }
+//                }
+//                _uiState.update {
+//                    it.copy(
+//                        isBlueToothAvailable = !(state == BluetoothAvailableState.BLUETOOTH_NOT_AVAILABLE
+//                                || state == BluetoothAvailableState.BLUETOOTH_NOT_ENABLED)
+//                    )
+//                }
+//            }
+//            .catch { Timber.e(it) }
+//            .launchIn(viewModelScope)
+//    }
 
     fun checkIsBluetoothEnable(): Boolean {
         val isBlueToothEnabled = isBlueToothEnabledUseCase()
@@ -105,21 +124,21 @@ class PairingViewModel @Inject constructor(
         _uiState.update { it.copy(shouldShowExitDialog = true) }
     }
 
-    fun deleteLock() {
-        flow { emit(lock!!.delete(getClientTokenUseCase())) }
-            .onEach {
-                _uiEvent.emit(PairingUiEvent.DeleteLockSuccess)
-                lock?.let {
-                    if (it.isConnected())
-                        it.disconnect()
-                }
-            }
-            .catch {
-                Timber.e(it)
-                _uiEvent.emit(PairingUiEvent.DeleteLockFail)
-            }
-            .launchIn(viewModelScope)
-    }
+//    fun deleteLock() {
+//        flow { emit(lock!!.delete(getClientTokenUseCase())) }
+//            .onEach {
+//                _uiEvent.emit(PairingUiEvent.DeleteLockSuccess)
+//                lock?.let {
+//                    if (it.isConnected())
+//                        it.disconnect()
+//                }
+//            }
+//            .catch {
+//                Timber.e(it)
+//                _uiEvent.emit(PairingUiEvent.DeleteLockFail)
+//            }
+//            .launchIn(viewModelScope)
+//    }
 
 }
 

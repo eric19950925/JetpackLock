@@ -22,29 +22,31 @@ class BleCmdRepository @Inject constructor(){
     private val commandSerial = AtomicInteger()
 
     private fun encrypt(key: ByteArray, data: ByteArray): ByteArray? {
+        Timber.d("key:\n${key.toHex()}")
         return try {
             val cipher: Cipher = Cipher.getInstance(CIPHER_MODE)
             val keySpec = SecretKeySpec(key, "AES")
             cipher.init(Cipher.ENCRYPT_MODE, keySpec)
             val encrypted: ByteArray = cipher.doFinal(data)
-//            Timber.d("encrypted:\n${encrypted.toHex()}")
+            Timber.d("encrypted:\n${encrypted.toHex()}")
             encrypted
         } catch (exception: Exception) {
-//            Timber.d(exception)
+            Timber.d(exception)
             null
         }
     }
 
     fun decrypt(key: ByteArray, data: ByteArray): ByteArray? {
+        Timber.d("key:\n${key.toHex()}")
         return try {
             val cipher: Cipher = Cipher.getInstance(CIPHER_MODE)
             val keySpec = SecretKeySpec(key, "AES")
             cipher.init(Cipher.DECRYPT_MODE, keySpec)
             val original: ByteArray = cipher.doFinal(data)
-//            Timber.d("decrypted: \n${original.toHex()}")
+            Timber.d("decrypted: \n${original.toHex()}")
             original
         } catch (exception: Exception) {
-//            Timber.d(exception)
+            Timber.d(exception)
             null
         }
     }
@@ -53,7 +55,7 @@ class BleCmdRepository @Inject constructor(){
         if (data.isEmpty()) throw IllegalArgumentException("Invalid command.")
         val padNumber = 16 - (data.size) % 16
         val padBytes = if (padZero) ByteArray(padNumber) else Random.nextBytes(padNumber)
-//        println(padBytes.toHex())
+        println(padBytes.toHex())
         return if (data.size % 16 == 0) {
             data
         } else {
@@ -113,6 +115,7 @@ class BleCmdRepository @Inject constructor(){
 //            0xC8 -> c8(serialIncrementAndGet(), key, data)
 //            0xCC -> cc(serialIncrementAndGet(), key)
             0xCE -> ce(serialIncrementAndGet(), key, data)
+            0xF0 -> f0(serialIncrementAndGet(), key, data)
 //            0xD0 -> d0(serialIncrementAndGet(), key)
 //            0xD1 -> d1(serialIncrementAndGet(), key, data)
 //            0xD2 -> d2(serialIncrementAndGet(), key)
@@ -152,6 +155,7 @@ class BleCmdRepository @Inject constructor(){
         val sendByte = ByteArray(2)
         sendByte[0] = 0xC0.toByte() // function
         sendByte[1] = 0x10 // len
+        Timber.d("c0: ${(serial + sendByte).toHex()}")
         return encrypt(aesKeyOne, pad(serial + sendByte + generateRandomBytes(0x10)))
             ?: throw IllegalArgumentException("bytes cannot be null")
     }
@@ -201,6 +205,29 @@ class BleCmdRepository @Inject constructor(){
 //        Timber.d("ce: ${(serial + sendByte + code).toHex()}")
         return encrypt(aesKeyTwo, pad(serial + sendByte + code))
             ?: throw IllegalArgumentException("bytes cannot be null")
+    }
+
+    fun f0(
+        serial: ByteArray,
+        aesKeyTwo: ByteArray,
+        code: ByteArray
+    ): ByteArray {
+        val sendByte = ByteArray(2)
+        sendByte[0] = 0xF0.toByte() // function
+        sendByte[1] = (code.size).toByte() // len
+        Timber.d("f0: ${(serial + sendByte + code).toHex()}")
+        return encrypt(aesKeyTwo, pad(serial + sendByte + code))
+            ?: throw IllegalArgumentException("bytes cannot be null")
+    }
+
+    fun resolveF0(aesKeyTwo: ByteArray, notification: ByteArray): String {
+        return decrypt(aesKeyTwo, notification)?.let { decrypted ->
+            if (decrypted.component3().unSignedInt() == 0xF0) {
+                String(decrypted.copyOfRange(2, decrypted.size - 1))
+            } else {
+                throw IllegalArgumentException("Return function byte is not [F0]")
+            }
+        } ?: throw IllegalArgumentException("Error when decryption")
     }
 
     fun resolveC0(keyOne: ByteArray, notification: ByteArray): ByteArray {

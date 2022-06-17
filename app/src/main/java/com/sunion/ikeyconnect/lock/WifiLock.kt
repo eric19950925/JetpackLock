@@ -1,30 +1,32 @@
 package com.sunion.ikeyconnect.lock
 
-import android.util.Log
-import androidx.lifecycle.viewModelScope
-import com.sunion.ikeyconnect.domain.Interface.Lock
-import com.sunion.ikeyconnect.domain.Interface.LockEventLogRepository
-import com.sunion.ikeyconnect.domain.Interface.LockInformationRepository
-import com.sunion.ikeyconnect.domain.Interface.UserCodeRepository
+import com.polidea.rxandroidble2.RxBleClient
+import com.polidea.rxandroidble2.RxBleConnection
+import com.polidea.rxandroidble2.RxBleDevice
+import com.sunion.ikeyconnect.domain.Interface.*
+import com.sunion.ikeyconnect.domain.blelock.BluetoothConnectState
 import com.sunion.ikeyconnect.domain.blelock.ReactiveStatefulConnection
+import com.sunion.ikeyconnect.domain.blelock.WifiListCommand
 import com.sunion.ikeyconnect.domain.exception.EmptyLockInfoException
 import com.sunion.ikeyconnect.domain.model.Event
 import com.sunion.ikeyconnect.domain.model.LockConnectionInformation
 import com.sunion.ikeyconnect.domain.model.LockInfo
+import com.sunion.ikeyconnect.domain.usecase.device.BleHandShakeUseCase
 import io.reactivex.disposables.Disposable
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
 import timber.log.Timber
+import java.util.*
 import javax.inject.Inject
+import javax.inject.Singleton
 
+@Singleton
 class WifiLock @Inject constructor(
     private val lockInformationRepository: LockInformationRepository,
     private val userCodeRepository: UserCodeRepository,
     private val eventLogRepository: LockEventLogRepository,
-    private val statefulConnection: ReactiveStatefulConnection
-    ) : Lock {
+    private val statefulConnection: ReactiveStatefulConnection,
+    ) : Lock, SunionWifiService {
 
     private var connectionDisposable: Disposable? = null
 
@@ -34,62 +36,37 @@ class WifiLock @Inject constructor(
     override val lockInfo: LockInfo
         get() = _lockInfo ?: throw EmptyLockInfoException()
 
-    private val _connectionState = MutableSharedFlow<Event<Pair<Boolean, String>>>()
-    override val connectionState: SharedFlow<Event<Pair<Boolean, String>>> = _connectionState
+    private var bleDevice: RxBleDevice? = null
+    private var lockScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var rxBleConnection: RxBleConnection? = null
+    private var scanJob: Job? = null
+    private var connectionJob: Job? = null
+    private var keyTwo = ""
+    private val wifiCmdUuid = UUID.fromString("de915dce-3539-61ea-ade7-d44a2237601f")
+    private val connectWifiState = mutableListOf<String>()
+    private val _connectionState2 = MutableSharedFlow<BluetoothConnectState>()
+    val connectionState2: SharedFlow<BluetoothConnectState> = _connectionState2
+
+//    private val _connectionState = MutableSharedFlow<Event<Pair<Boolean, String>>>()
+    override val connectionState: SharedFlow<Event<Pair<Boolean, String>>> = statefulConnection.connectionState
 
     fun init(lockInfo: LockInfo): WifiLock {
         this._lockInfo = lockInfo
-        val disposable = lockInformationRepository.get(lockInfo.macAddress)
-            .map {
-                mLock = it
-            }
         return this
     }
 
     override fun connect() {
-            statefulConnection
-                .device(lockInfo?.macAddress?:return)
-                .let {
-//                    mRxBleDevice.value = it
-                    val disposable = it.establishConnection(false)
-                        .flatMap { rxConnect ->
-//                            viewModelScope.launch {
-//                                mRxBleConnection.value = rxConnect
-//                            }
-                            statefulConnection.connectWithToken(mLock?:throw EmptyLockInfoException(), rxConnect)
-                        }
-                        .subscribe({
-                            //only user has all permission can continue next step , need to edit todo
-//                            Log.d("TAG","Success connect with $it Permission.")
-//                            if(it.equals("A")){
-//                                success.invoke()
-//                                viewModelScope.launch {
-//                                    mLockBleStatus.value = BleStatus.CONNECT
-//                                }
-//                            }
-                        },{
-                            Timber.e(it.toString())
-//                            failure(it)
-//                            viewModelScope.launch {
-//                                mLockBleStatus.value = BleStatus.UNCONNECT
-//                            }
-                        })
-                    connectionDisposable = disposable
-                }
-//        (mRxBleDevice.value?:return).observeConnectionStateChanges()
-//            .observeOn(AndroidSchedulers.mainThread())
-//            .subscribe { onConnectionStateChange(it) }
-//            .let { stateDisposable = it }
-
-    }
+        statefulConnection.connect_asflow(lockInfo.macAddress)
+//        statefulConnection.establishConnection(lockInfo.macAddress, false)
+        Timber.d("find ${lockInfo.deviceName}")
+//        statefulConnection.establishConnection_by_deviceName(lockInfo.deviceName, false)
+        }
 
     override fun disconnect() {
         connectionDisposable?.dispose()
     }
 
-    override fun isConnected(): Boolean {
-        TODO("Not yet implemented")
-    }
+    override fun isConnected(): Boolean = statefulConnection.getIsConnected()
 
     override fun getName(shouldSave: Boolean): Flow<String> {
         TODO("Not yet implemented")
@@ -132,6 +109,14 @@ class WifiLock @Inject constructor(
         TODO("Not yet implemented")
     }
 
+    override fun collectWifiList(): Flow<WifiListResult> = statefulConnection.collectWifiList()
+
+    override suspend fun scanWifi() = statefulConnection.scanWifi()
+
+    override fun collectConnectToWifiState(): Flow<WifiConnectState> = statefulConnection.collectConnectToWifiState()
+
+    override suspend fun connectLockToWifi(ssid: String, password: String): Boolean = statefulConnection.connectLockToWifi(ssid, password)
+
 //    suspend fun deviceProvisionCreate(
 //        serialNumber: String,
 //        deviceName: String,
@@ -150,3 +135,8 @@ class WifiLock @Inject constructor(
 //        )
 //    }
 }
+
+data class WifiConnectState(
+    val isWifiConnected: Boolean = false,
+    val isIotConnected: Boolean = false,
+)

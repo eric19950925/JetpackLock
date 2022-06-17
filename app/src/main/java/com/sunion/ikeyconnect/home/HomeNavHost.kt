@@ -25,6 +25,9 @@ fun HomeNavHost(onLogoutClick: () -> Unit) {
                 onPersonClick = {
                     navController.navigate(HomeRoute.MemberManagement.route)
                 },
+                onLockClick = {
+                    navController.navigate(HomeRoute.HomeTest.route)
+                },
                 showGuile = viewModel.showGuide.value,
                 onShowGuideClick = {viewModel.setGuideHasBeenSeen()}
             )
@@ -42,6 +45,11 @@ fun HomeNavHost(onLogoutClick: () -> Unit) {
             route = HomeRoute.AddLock.route,
 //            onAddLockFinish = viewModel::boltOrientation
         )
+        homeTestGraph(
+            navController = navController,
+            route = HomeRoute.HomeTest.route
+        )
+
     }
 }
 
@@ -49,4 +57,5 @@ sealed class HomeRoute(val route: String) {
     object Home : HomeRoute("MemberHome")
     object MemberManagement : HomeRoute("MemberManagement")
     object AddLock : HomeRoute("AddLock")
+    object HomeTest : HomeRoute("HomeTest")
 }

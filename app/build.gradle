@@ -82,6 +82,8 @@ dependencies {
 
     // RxJava
     implementation "com.squareup.retrofit2:adapter-rxjava2:2.3.0"
+    implementation 'com.jakewharton.rx2:replaying-share-kotlin:2.2.0'
+    implementation 'io.reactivex.rxjava2:rxandroid:2.1.1'
 
     implementation "com.google.accompanist:accompanist-appcompat-theme:$accompanist_version"
     implementation "com.google.accompanist:accompanist-permissions:$accompanist_version"

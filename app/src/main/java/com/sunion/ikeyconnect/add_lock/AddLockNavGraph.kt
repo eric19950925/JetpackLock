@@ -5,6 +5,8 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
+import com.sunion.ikeyconnect.add_lock.connect_to_wifi.WIfiListScreen
+import com.sunion.ikeyconnect.add_lock.connect_to_wifi.WifiListViewModel
 import com.sunion.ikeyconnect.add_lock.pairing.PairingScreen
 import com.sunion.ikeyconnect.add_lock.pairing.PairingViewModel
 import com.sunion.ikeyconnect.add_lock.scan_qrcode.ScanLockPermissionScreen
@@ -40,14 +42,14 @@ fun NavGraphBuilder.addLockGraph(
         composable("${AddLockRoute.Pairing.route}/{macAddress}") { backStackEntry ->
             val macAddress = backStackEntry.arguments?.getString("macAddress") ?: ""
             val viewModel = hiltViewModel<PairingViewModel>()
-            viewModel.macAddress ?: viewModel.init(macAddress)
+            /*viewModel.macAddress ?: */viewModel.init(macAddress)
             PairingScreen(viewModel = viewModel, navController = navController)
         }
         composable("${AddLockRoute.WifiList.route}/{macAddress}") { backStackEntry ->
             val macAddress = backStackEntry.arguments?.getString("macAddress") ?: ""
-//            val viewModel = hiltViewModel<WifiListViewModel>()
-//            viewModel.macAddress ?: viewModel.init(macAddress)
-//            WIfiListScreen(viewModel = viewModel, navController = navController)
+            val viewModel = hiltViewModel<WifiListViewModel>()
+            viewModel.macAddress ?: viewModel.init(macAddress)
+            WIfiListScreen(viewModel = viewModel, navController = navController)
         }
         composable("${AddLockRoute.ConnectWifi.route}/{macAddress}/{ssid}") { backStackEntry ->
             val macAddress = backStackEntry.arguments?.getString("macAddress") ?: ""
