@@ -211,7 +211,6 @@ class BleHandShakeUseCase @Inject constructor(
             }
     }
 
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     fun sendC0(
         rxConnection: RxBleConnection,
         keyOne: ByteArray,

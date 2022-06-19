@@ -8,13 +8,13 @@ import com.sunion.ikeyconnect.domain.blelock.BluetoothConnectState
 import com.sunion.ikeyconnect.domain.blelock.ReactiveStatefulConnection
 import com.sunion.ikeyconnect.domain.blelock.WifiListCommand
 import com.sunion.ikeyconnect.domain.exception.EmptyLockInfoException
-import com.sunion.ikeyconnect.domain.model.Event
-import com.sunion.ikeyconnect.domain.model.LockConnectionInformation
-import com.sunion.ikeyconnect.domain.model.LockInfo
+import com.sunion.ikeyconnect.domain.model.*
+import com.sunion.ikeyconnect.domain.usecase.account.GetIdTokenUseCase
 import com.sunion.ikeyconnect.domain.usecase.device.BleHandShakeUseCase
 import io.reactivex.disposables.Disposable
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.rx2.asFlow
 import timber.log.Timber
 import java.util.*
 import javax.inject.Inject
@@ -26,6 +26,8 @@ class WifiLock @Inject constructor(
     private val userCodeRepository: UserCodeRepository,
     private val eventLogRepository: LockEventLogRepository,
     private val statefulConnection: ReactiveStatefulConnection,
+    private val iotService: SunionIotService,
+    private val getIdToken: GetIdTokenUseCase,
     ) : Lock, SunionWifiService {
 
     private var connectionDisposable: Disposable? = null
@@ -45,7 +47,7 @@ class WifiLock @Inject constructor(
     private val wifiCmdUuid = UUID.fromString("de915dce-3539-61ea-ade7-d44a2237601f")
     private val connectWifiState = mutableListOf<String>()
     private val _connectionState2 = MutableSharedFlow<BluetoothConnectState>()
-    val connectionState2: SharedFlow<BluetoothConnectState> = _connectionState2
+    val connectionState2: SharedFlow<BluetoothConnectState> = statefulConnection.connectionState2
 
 //    private val _connectionState = MutableSharedFlow<Event<Pair<Boolean, String>>>()
     override val connectionState: SharedFlow<Event<Pair<Boolean, String>>> = statefulConnection.connectionState
@@ -56,7 +58,7 @@ class WifiLock @Inject constructor(
     }
 
     override fun connect() {
-        statefulConnection.connect_asflow(lockInfo.macAddress)
+        statefulConnection.connect_asflow(lockInfo)
 //        statefulConnection.establishConnection(lockInfo.macAddress, false)
         Timber.d("find ${lockInfo.deviceName}")
 //        statefulConnection.establishConnection_by_deviceName(lockInfo.deviceName, false)
@@ -117,23 +119,83 @@ class WifiLock @Inject constructor(
 
     override suspend fun connectLockToWifi(ssid: String, password: String): Boolean = statefulConnection.connectLockToWifi(ssid, password)
 
-//    suspend fun deviceProvisionCreate(
-//        serialNumber: String,
-//        deviceName: String,
-//        timeZone: String,
-//        timeZoneOffset: Int,
-//        clientToken: String,
-//        model: String,
-//    ): Boolean {
-//        return iotService.deviceProvisionCreate(
-//            serialNumber,
-//            deviceName,
-//            timeZone,
-//            timeZoneOffset,
-//            clientToken,
-//            model
-//        )
-//    }
+    fun getAndSaveThingName(clientToken: String) =
+        flow {
+            val idToken = runCatching {
+                getIdToken().single()
+            }.getOrNull() ?: return@flow
+
+            emit(iotService.getDeviceList(idToken, clientToken))
+        }
+            .map {
+                it.find { d -> d.attributes.bluetooth.mACAddress == lockInfo.macAddress }
+                    ?.run {
+                        lockInformationRepository.setThingName(lockInfo.macAddress, thingName)
+                        Timber.d(thingName)
+                        thingName
+                    }
+                    ?: throw Exception("device not found on remote")
+            }
+            .retry(5) {
+                delay(5000)
+                true
+            }
+
+    suspend fun deviceProvisionCreate(
+        serialNumber: String,
+        deviceName: String,
+        timeZone: String,
+        timeZoneOffset: Int,
+        clientToken: String,
+        model: String,
+    ): Boolean {
+
+        val idToken = runCatching {
+            getIdToken().single()
+        }.getOrNull() ?: return false
+
+        return iotService.deviceProvisionCreate(
+            idToken,
+            serialNumber,
+            deviceName,
+            timeZone,
+            timeZoneOffset,
+            clientToken,
+            model
+        )
+    }
+
+    suspend fun lockByNetwork(clientToken: String?): LockSetting {
+
+        val idToken = runCatching {
+            getIdToken().single()
+        }.getOrNull() ?: return LockSetting(LockConfig(LockOrientation.Left,false,false,false,0,null,null),LockStatus.LOCKED,0,0,0)
+
+        return lockInformationRepository
+            .get(lockInfo.macAddress)
+            .toObservable()
+            .asFlow()
+            .flatMapConcat { flow { emit(iotService.lock(idToken, it.thingName!!, clientToken!!)) } }
+            .map {
+                LockSetting(
+                    config = LockConfig(
+                        orientation = LockOrientation.Left, //TODO
+                        isSoundOn = false,
+                        isVacationModeOn = false,
+                        isAutoLock = false,
+                        autoLockTime = 0,
+                        latitude = null,
+                        longitude = null
+                    ),
+                    status = LockStatus.LOCKED,
+                    battery = 0,
+                    batteryStatus = 0,
+                    timestamp = 0
+                )
+            }
+            .single()
+    }
+
 }
 
 data class WifiConnectState(

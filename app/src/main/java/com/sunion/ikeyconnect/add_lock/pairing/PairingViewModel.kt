@@ -16,6 +16,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import timber.log.Timber
+import java.util.concurrent.TimeoutException
 
 @HiltViewModel
 class PairingViewModel @Inject constructor(
@@ -122,6 +123,32 @@ class PairingViewModel @Inject constructor(
 
     fun showExitPromptDialog() {
         _uiState.update { it.copy(shouldShowExitDialog = true) }
+    }
+
+    fun getThingName(){
+        val wifiLock = lock ?: return
+        flow{
+            emit((wifiLock as WifiLock).getAndSaveThingName(getClientTokenUseCase()))
+        }
+            .onEach {
+                Timber.d(it.single())
+            }
+            .flowOn(Dispatchers.IO)
+            .catch { Timber.e(it) }
+            .launchIn(viewModelScope)
+    }
+
+    fun setLock(){
+        val wifiLock = lock ?: return
+        flow{
+            emit((wifiLock as WifiLock).lockByNetwork(getClientTokenUseCase()))
+        }
+            .onEach {
+                Timber.d(it.toString())
+            }
+            .flowOn(Dispatchers.IO)
+            .catch { Timber.e(it) }
+            .launchIn(viewModelScope)
     }
 
 //    fun deleteLock() {

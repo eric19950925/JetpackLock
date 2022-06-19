@@ -21,6 +21,7 @@ import com.sunion.ikeyconnect.R
 import com.sunion.ikeyconnect.add_lock.AddLockRoute
 import com.sunion.ikeyconnect.home.HomeRoute
 import com.sunion.ikeyconnect.home.HomeTestRoute
+import kotlinx.coroutines.flow.flow
 
 @Composable
 fun PairingScreen(viewModel: PairingViewModel,
@@ -46,6 +47,12 @@ fun PairingScreen(viewModel: PairingViewModel,
 //                    navController.navigate(HomeRoute.Home.route)
 //            } else
 //                viewModel.startPairing()
+        },
+        on_getThingName_Click = {
+            viewModel.getThingName()
+        },
+        on_lock_Click = {
+            viewModel.setLock()
         },
         modifier = modifier
     )
@@ -76,6 +83,8 @@ fun PairingScreen(
     on_C0C1_Click: () -> Unit,
     state: PairingUiState,
     on_next_Click: () -> Unit,
+    on_getThingName_Click: () -> Unit,
+    on_lock_Click: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(modifier = Modifier.fillMaxSize().background(Color.White), contentAlignment = Alignment.Center) {
@@ -97,7 +106,20 @@ fun PairingScreen(
                     ButtonDefaults.buttonColors(backgroundColor = MaterialTheme.colors.primary)
                 else ButtonDefaults.buttonColors(backgroundColor = MaterialTheme.colors.primaryVariant)
             ){ Text("next") }
-
+            Button(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                onClick = on_getThingName_Click,
+                colors = ButtonDefaults.buttonColors(backgroundColor = MaterialTheme.colors.primary)
+            ){ Text("getThingName") }
+            Button(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                onClick = on_lock_Click,
+                colors = ButtonDefaults.buttonColors(backgroundColor = MaterialTheme.colors.primary)
+            ){ Text("lock") }
         }
     }
 }
@@ -108,6 +130,8 @@ private fun Preview(@PreviewParameter(AddLockScreenPreviewParameterProvider::cla
         on_C0C1_Click = {},
         state = state,
         on_next_Click = {},
+        on_getThingName_Click = {},
+        on_lock_Click = {}
         )
 }
 class AddLockScreenPreviewParameterProvider : PreviewParameterProvider<PairingUiState> {

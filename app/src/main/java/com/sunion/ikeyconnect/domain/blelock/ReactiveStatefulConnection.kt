@@ -6,12 +6,17 @@ import android.util.Base64
 import com.jakewharton.rx.ReplayingShare
 import com.polidea.rxandroidble2.*
 import com.polidea.rxandroidble2.scan.ScanSettings
+import com.sunion.ikeyconnect.add_lock.connect_to_wifi.WiFiListUiState
 import com.sunion.ikeyconnect.domain.Interface.SunionWifiService
 import com.sunion.ikeyconnect.domain.Interface.WifiListResult
+import com.sunion.ikeyconnect.domain.blelock.IKeyCommand.Companion.CMD_CONNECT
 import com.sunion.ikeyconnect.domain.model.Event
+import com.sunion.ikeyconnect.domain.model.EventState
+import com.sunion.ikeyconnect.domain.model.LockInfo
 import com.sunion.ikeyconnect.domain.toHex
 import com.sunion.ikeyconnect.domain.usecase.device.BleHandShakeUseCase
 import com.sunion.ikeyconnect.lock.WifiConnectState
+import com.sunion.ikeyconnect.lock.WifiLock
 import com.sunion.ikeyconnect.unless
 import io.reactivex.Observable
 import io.reactivex.disposables.CompositeDisposable
@@ -46,6 +51,8 @@ class ReactiveStatefulConnection @Inject constructor(
     private val connectWifiState = mutableListOf<String>()
     private val _connectionState = MutableSharedFlow<Event<Pair<Boolean, String>>>()
     override val connectionState: SharedFlow<Event<Pair<Boolean, String>>> = _connectionState
+    private val _connectionState2 = MutableSharedFlow<BluetoothConnectState>()
+    val connectionState2: SharedFlow<BluetoothConnectState> = _connectionState2
     private var _connection: Observable<RxBleConnection>? = null
 //    private val connectionTimer = CountDownTimer(30000, 1000)
 
@@ -81,18 +88,52 @@ class ReactiveStatefulConnection @Inject constructor(
     override fun isConnectedWithDevice(): Boolean {
         TODO("Not yet implemented")
     }
-     fun connect_asflow(macAddress: String) {
-        rxBleClient.getBleDevice(macAddress)
-            .let {
-                _bleDevice = it
+
+    fun connect_asflow(lockInfo: LockInfo) {
+
+        //todo 30sec timeout
+//        rxBleClient.getBleDevice(macAddress)
+//            .let {
 //                observeConnectionStateChanges(it)
-                connectToDevice(it, macAddress)
+//                connectToDevice(it, macAddress)
+//            }
+
+        scanJob?.cancel()
+        scanJob = rxBleClient
+            .scanBleDevices(
+                ScanSettings.Builder()
+                    .setScanMode(ScanSettings.SCAN_MODE_BALANCED)
+                    .build()
+            )
+            .asFlow()
+//            .onStart { emitLoading() }
+            .filter { it.bleDevice.name.equals(lockInfo.deviceName, ignoreCase = true) }
+            .map { it.bleDevice }
+            .onEach {
+                _bleDevice = it
+                observeConnectionStateChanges(it)
+                connectToDevice(it, lockInfo.macAddress)
+                scanJob?.cancel()
             }
+            .catch {
+                Timber.e(it)
+            }
+            .launchIn(lockScope)
     }
 
     fun connectToDevice(rxBleDevice: RxBleDevice, macAddress: String) {
         scanJob?.cancel()
         connectionJob?.cancel()
+
+//        connectionTimerJob = coroutineScope.launch {
+//            Timber.d("coroutineScope 30 sec")
+//            delay(30000)
+//            connectionDisposable?.dispose()
+//            _bleDevice = null
+////            lockScope.cancel()
+//            emitConnectionState(Event.error(TimeoutException::class.java.simpleName))
+//        }
+
         connectionJob = rxBleDevice
             .establishConnection(false)
             .asFlow()
@@ -110,203 +151,96 @@ class ReactiveStatefulConnection @Inject constructor(
                 ).asFlow()
             }
             .flatMapConcat { permission ->
-                Timber.d("permission:$permission")
+//                Timber.d("permission:$permission")
                 emitConnectionState((Event.success(Pair(true, permission))))
-                delay(2000)
+//                delay(1000)
                 bleHandShakeUseCase.getLockConnection(macAddress).toObservable().asFlow()
             }
 //            .onStart { emitLoading() }
-            .retry(3) {
-                delay(2000)
-                true
-            }
+//            .retry(3) {
+//                delay(2000)
+//                true
+//            }
             .onEach { info ->
+                _bleDevice = rxBleDevice
                 keyTwo = info.keyTwo
 //                useWifi = info.useWifi == true
 //                emitSuccess()
             }
             .catch {
                 Timber.tag("WifiLock.connectToDevice").e(it)
-//                emitDisconnect()
+                _bleDevice = null
+                emitConnectionState(Event.error(TimeoutException::class.java.simpleName))
+//                emitWifiListState((WiFiListUiState()))
             }
             .launchIn(lockScope)
     }
-    override fun establishConnection(macAddress: String, isSilentlyFail: Boolean): Disposable {
-        close()
-
-        connectionTimerJob = coroutineScope.launch {
-            Timber.d("coroutineScope 30 sec")
-            delay(30000)
-            connectionDisposable?.dispose()
-            emitConnectionState(Event.error(TimeoutException::class.java.simpleName))
-        }
-
-        this.macAddress = macAddress.uppercase(Locale.ROOT)
-        val device = rxBleClient.getBleDevice(macAddress.uppercase(Locale.ROOT))
-        _bleDevice = device
-//        val disposable = rxBleClient.scanBleDevices().subscribe({
-//            if(it.bleDevice.name == "BT_Lock_7B126A")
-//                Log.d("TAG",it.bleDevice.macAddress + " : " +it.bleDevice.name)
-//        })
-        // please see https://github.com/Polidea/RxAndroidBle/wiki/Tutorial:-Connection-Observable-sharing
-        val connection = establishBleConnectionAndRequestMtu(device)
-            .doOnSubscribe { emitConnectionState(Event.loading()) }
-            .compose(ReplayingShare.instance())
 
 
-        val disposable = runConnectionSequence(connection, device, isSilentlyFail)
-        connectionDisposable = disposable
-
-        return disposable
-    }
-
-    fun establishConnection_by_deviceName(deviceName: String, isSilentlyFail: Boolean): Disposable {
-        close()
-
-        connectionTimerJob = coroutineScope.launch {
-            Timber.d("coroutineScope 30 sec")
-            delay(30000)
-            connectionDisposable?.dispose()
-            emitConnectionState(Event.error(TimeoutException::class.java.simpleName))
-        }
-
-        val disposable =
-            rxBleClient.scanBleDevices(
-                ScanSettings.Builder()
-                    .setScanMode(ScanSettings.SCAN_MODE_BALANCED)
-                    .build()
-            )
-                .filter { it.bleDevice.name.equals(deviceName, ignoreCase = true) }
-                .take(1)
-                .map { it.bleDevice }
-                .subscribe { device ->
-                    _bleDevice = device
-                    Log.d("TAG", device.macAddress + " : " + device.name)
-                    val connect = establishBleConnectionAndRequestMtu(device)
-                    runConnectionSequence(connect, device, isSilentlyFail)
-                }
-
-        connectionDisposable = disposable
-        return disposable
-    }
 
     private fun emitConnectionState(event: Event<Pair<Boolean, String>>) {
+        runBlocking {
+            delay(5000)
+            _connectionState.emit(event)
+            lastConnectionState.value = event
+        }
+    }
+
+
+    private fun emitWifiListState(event: Event<Pair<Boolean, String>>) {
         runBlocking {
             _connectionState.emit(event)
             lastConnectionState.value = event
         }
     }
 
-    override fun establishBleConnectionAndRequestMtu(device: RxBleDevice): Observable<RxBleConnection> {
-        return Observable.timer(500, TimeUnit.MILLISECONDS)
-            .flatMap { device.establishConnection(false) }
-            .takeUntil(
-                disconnectTriggerSubject.doOnNext { isDisconnected ->
-                    unless(isDisconnected) {
-                        emitConnectionState(Event.success(Pair(false, "")))
-                    }
+    private fun observeConnectionStateChanges(rxBleDevice: RxBleDevice) {
+        rxBleDevice
+            .observeConnectionStateChanges()
+            .asFlow()
+            .onStart { emitLoading() }
+            .map {
+                when (it) {
+                    RxBleConnection.RxBleConnectionState.CONNECTING -> emitLoading()
+                    RxBleConnection.RxBleConnectionState.CONNECTED -> if (keyTwo.isNotEmpty()) emitSuccess()
+                    RxBleConnection.RxBleConnectionState.DISCONNECTED -> emitDisconnect()
+                    RxBleConnection.RxBleConnectionState.DISCONNECTING -> emitLoading()
+                    null -> emitLoading()
                 }
+            }
+            .catch {
+                Timber.e(it)
+                emitDisconnect()
+            }
+            .launchIn(lockScope)
+    }
+
+    private fun emitSuccess() {
+        lockScope.launch {
+            _connectionState.emit(
+                Event(status = EventState.SUCCESS, data = Pair(true, ""), message = null)
             )
-            .flatMap { connection ->
-                Timber.d("connected to device and request mtu :${connection.mtu}")
-                connection
-                    .requestMtu(RxBleConnection.GATT_MTU_MAXIMUM)
-                    .ignoreElement()
-                    .doOnError { error -> Timber.d(error) }
-                    .andThen(Observable.just(connection))
-            }
+            _connectionState2.emit(BluetoothConnectState.CONNECTED)
+        }
     }
 
-    override fun runConnectionSequence(
-        rxBleConnection: Observable<RxBleConnection>,
-        device: RxBleDevice,
-        isSilentlyFail: Boolean
-    ): Disposable {
-        return connectionSequenceObservable(device, rxBleConnection)
-            .doOnSubscribe { emitConnectionState(Event.loading()) }
-            .doOnNext {
-                this._connection = rxBleConnection
-            }
-            .subscribeOn(Schedulers.single())
-            .subscribe(
-                { permission -> actionAfterDeviceTokenExchanged(permission, device) },
-                { actionAfterConnectionError(it, device.macAddress, isSilentlyFail) }
+    private fun emitLoading() {
+        lockScope.launch {
+            _connectionState.emit(
+                Event(status = EventState.LOADING, data = null, message = null)
             )
-            .apply { trashBin.add(this) }
+            _connectionState2.emit(BluetoothConnectState.CONNECTING)
+        }
     }
 
-    fun connectionSequenceObservable(
-        device: RxBleDevice,
-        rxBleConnection: Observable<RxBleConnection>
-    ): Observable<String> {
-        val bluetoothGattRefreshCustomOp = refreshAndroidStackCacheCustomOperation()
-        val discoverServicesCustomOp = customDiscoverServicesOperation()
 
-        return rxBleConnection
-            .flatMap { rxConnection ->
-                Timber.d("device mtu size: ${rxConnection.mtu}")
-                _rxBleConnection = rxConnection
-                rxConnection
-                    .queue(bluetoothGattRefreshCustomOp)
-                    .ignoreElements()
-                    .andThen(rxConnection.queue(discoverServicesCustomOp))
-                    .flatMapSingle { bleHandShakeUseCase.getLockConnection(device.macAddress) }
-                    .flatMap { connection ->
-                        bleHandShakeUseCase.invoke(
-                            connection,
-                            device.macAddress,
-                            device.name,
-                            rxConnection
-                        )
-                    }
-            }
-    }
-
-    private fun refreshAndroidStackCacheCustomOperation() =
-        RxBleCustomOperation { bluetoothGatt, _, _ ->
-            try {
-                val bluetoothGattRefreshFunction: Method =
-                    bluetoothGatt.javaClass.getMethod("refresh")
-                val success = bluetoothGattRefreshFunction.invoke(bluetoothGatt) as Boolean
-                if (!success) {
-                    Observable.error(RuntimeException("BluetoothGatt.refresh() returned false"))
-                } else {
-                    Observable.empty<Void>().delay(200, TimeUnit.MILLISECONDS)
-                }
-            } catch (e: NoSuchMethodException) {
-                Observable.error<Void>(e)
-            } catch (e: IllegalAccessException) {
-                Observable.error<Void>(e)
-            } catch (e: InvocationTargetException) {
-                Observable.error<Void>(e)
-            }
-        }
-
-    @SuppressLint("MissingPermission")
-    private fun customDiscoverServicesOperation() =
-        RxBleCustomOperation { bluetoothGatt, rxBleGattCallback, _ ->
-            val success: Boolean = bluetoothGatt.discoverServices()
-            if (!success) {
-                Observable.error(RuntimeException("BluetoothGatt.discoverServices() returned false"))
-            } else {
-                rxBleGattCallback.onServicesDiscovered
-                    .take(1) // so this RxBleCustomOperation will complete after the first result from BluetoothGattCallback.onServicesDiscovered()
-                    .map(RxBleDeviceServices::getBluetoothGattServices)
-            }
-        }
-
-    override fun actionAfterDeviceTokenExchanged(permission: String, device: RxBleDevice) {
-        unless(permission.isNotBlank()) {
-            connectionTimerJob?.cancel()
-            Timber.d("action after device token exchanged: connected with device: ${device.macAddress}, and the stateful connection has been shared: $connection")
-//            preferenceStore.connectedMacAddress = device.macAddress
-            // after token exchange, update successfully, and connection object had been shared,
-            // the E5, D6 notification will emit to downstream
-            // the E5 had been intercepted and had been stored in Room database,
-            // we then handle the D6 lock's current status and publish to those observers.
-            emitConnectionState((Event.success(Pair(true, permission))))
-            // populate lock list
-            updateBleDeviceState()
+    private fun emitDisconnect() {
+        _bleDevice = null
+        lockScope.launch {
+            _connectionState.emit(
+                Event(status = EventState.ERROR, data = Pair(false, ""), message = null)
+            )
+            _connectionState2.emit(BluetoothConnectState.DISCONNECTED)
         }
     }
 
@@ -378,11 +312,9 @@ class ReactiveStatefulConnection @Inject constructor(
             .flatMap { it }
             .asFlow()
             .filter {
-                Timber.d(it.toHex())
-                mBleCmdRepository.decrypt(Base64.decode(keyTwo, Base64.DEFAULT), it)?.component3()
-                    ?.unSignedInt() == 0xF0
-
-//                wifiListCommand.match(keyTwo, it)
+//                mBleCmdRepository.decrypt(Base64.decode(keyTwo, Base64.DEFAULT), it)?.component3()
+//                    ?.unSignedInt() == 0xF0
+                wifiListCommand.match(keyTwo, it)
             }
             .map {
                 Timber.d(it.toHex())
@@ -393,7 +325,7 @@ class ReactiveStatefulConnection @Inject constructor(
                 if (cmdResponse == "LE")
                     WifiListResult.End
                 else
-                    WifiListResult.Wifi(cmdResponse, true)
+                    WifiListResult.Wifi(cmdResponse.substring(2), true)
             }
     }
 
@@ -402,10 +334,7 @@ class ReactiveStatefulConnection @Inject constructor(
         _rxBleConnection!!
             .writeCharacteristic(NOTIFICATION_CHARACTERISTIC, command).toObservable().asFlow()
             .flowOn(Dispatchers.IO)
-            .onEach { written: ByteArray ->
-                Timber.d("[F0] has written: ${written.toHex()}")
-                mBleCmdRepository.resolveF0(Base64.decode(keyTwo, Base64.DEFAULT), written)
-                Timber.d("OK") }
+            .onEach { Timber.d("OK") }
             .catch { Timber.e(it) }
             .launchIn(lockScope)
     }
@@ -416,8 +345,11 @@ class ReactiveStatefulConnection @Inject constructor(
             .flatMap { it }
             .asFlow()
             .onStart { connectWifiState.clear() }
-            .filter { String(byteArrayOf(it[0])) == SunionWifiService.CMD_CONNECT }
-            .map { String(it) }
+            .filter {
+                wifiListCommand.match(keyTwo, it)
+//                String(byteArrayOf(it[0])) == CMD_CONNECT
+            }
+            .map { wifiListCommand.parseResult(keyTwo, it) }
             .map { cmdResponse ->
                 Timber.d(cmdResponse)
                 connectWifiState.add(cmdResponse)
@@ -429,20 +361,23 @@ class ReactiveStatefulConnection @Inject constructor(
 
     override suspend fun connectLockToWifi(ssid: String, password: String): Boolean {
         val connection = _rxBleConnection ?: return false
+        val command_set_ssid = wifiListCommand.setSSID(keyTwo, ssid)
+        val command_set_password = wifiListCommand.setPassword(keyTwo, password)
+        val command_connect = wifiListCommand.connect(keyTwo)
         connection
             .writeCharacteristic(
-                NOTIFICATION_CHARACTERISTIC, ("${SunionWifiService.CMD_SET_SSID_PREFIX}$ssid").toByteArray()
+                NOTIFICATION_CHARACTERISTIC, command_set_ssid
             )
             .flatMap {
                 connection
                     .writeCharacteristic(
                         NOTIFICATION_CHARACTERISTIC,
-                        ("${SunionWifiService.CMD_SET_PASSWORD_PREFIX}$password").toByteArray()
+                        command_set_password
                     )
             }
             .flatMap {
                 connection
-                    .writeCharacteristic(NOTIFICATION_CHARACTERISTIC, SunionWifiService.CMD_CONNECT.toByteArray())
+                    .writeCharacteristic(NOTIFICATION_CHARACTERISTIC, command_connect)
             }
             .toObservable()
             .asFlow()

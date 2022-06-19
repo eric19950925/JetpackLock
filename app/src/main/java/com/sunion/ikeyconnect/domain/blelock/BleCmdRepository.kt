@@ -37,13 +37,13 @@ class BleCmdRepository @Inject constructor(){
     }
 
     fun decrypt(key: ByteArray, data: ByteArray): ByteArray? {
-        Timber.d("key:\n${key.toHex()}")
+//        Timber.d("key:\n${key.toHex()}")
         return try {
             val cipher: Cipher = Cipher.getInstance(CIPHER_MODE)
             val keySpec = SecretKeySpec(key, "AES")
             cipher.init(Cipher.DECRYPT_MODE, keySpec)
             val original: ByteArray = cipher.doFinal(data)
-            Timber.d("decrypted: \n${original.toHex()}")
+//            Timber.d("decrypted: \n${original.toHex()}")
             original
         } catch (exception: Exception) {
             Timber.d(exception)
@@ -55,7 +55,7 @@ class BleCmdRepository @Inject constructor(){
         if (data.isEmpty()) throw IllegalArgumentException("Invalid command.")
         val padNumber = 16 - (data.size) % 16
         val padBytes = if (padZero) ByteArray(padNumber) else Random.nextBytes(padNumber)
-        println(padBytes.toHex())
+//        println(padBytes.toHex())
         return if (data.size % 16 == 0) {
             data
         } else {

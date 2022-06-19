@@ -46,7 +46,7 @@ class LockInformationRepositoryImpl @Inject constructor(
     }
 
     override suspend fun setThingName(macAddress: String, thingName: String) {
-        TODO("Not yet implemented")
+        lockConnectionInformationDao.setThingName(macAddress, thingName)
     }
 
     override fun getLockWithUserCode(macAddress: String): Single<LockWithUserCode> {

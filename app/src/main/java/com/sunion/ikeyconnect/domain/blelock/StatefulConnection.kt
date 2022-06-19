@@ -33,17 +33,17 @@ interface StatefulConnection {
 
     fun isConnectedWithDevice(): Boolean
 
-    fun establishConnection(macAddress: String, isSilentlyFail: Boolean): Disposable
-
-    fun establishBleConnectionAndRequestMtu(device: RxBleDevice): Observable<RxBleConnection>
-
-    fun runConnectionSequence(
-        rxBleConnection: Observable<RxBleConnection>,
-        device: RxBleDevice,
-        isSilentlyFail: Boolean
-    ): Disposable
-
-    fun actionAfterDeviceTokenExchanged(permission: String, device: RxBleDevice)
+//    fun establishConnection(macAddress: String, isSilentlyFail: Boolean): Disposable
+//
+//    fun establishBleConnectionAndRequestMtu(device: RxBleDevice): Observable<RxBleConnection>
+//
+//    fun runConnectionSequence(
+//        rxBleConnection: Observable<RxBleConnection>,
+//        device: RxBleDevice,
+//        isSilentlyFail: Boolean
+//    ): Disposable
+//
+//    fun actionAfterDeviceTokenExchanged(permission: String, device: RxBleDevice)
 
     fun actionAfterConnectionError(
         error: Throwable,

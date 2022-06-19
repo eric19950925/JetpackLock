@@ -10,6 +10,8 @@ import com.sunion.ikeyconnect.domain.model.LockInfo
 import com.sunion.ikeyconnect.lock.WifiLock
 import kotlinx.coroutines.flow.single
 import kotlinx.coroutines.rx2.asFlow
+import java.time.ZoneId
+import java.util.*
 import javax.inject.Inject
 
 
@@ -21,8 +23,8 @@ class LockProvider @Inject constructor(
 
 
     override suspend fun getLockByMacAddress(macAddress: String): Lock? {
-        if (locks.containsKey(macAddress))
-            return locks[macAddress]
+//        if (locks.containsKey(macAddress))
+//            return locks[macAddress]
 
         val lockConnectionInfo = runCatching {
             lockInformationRepository.get(macAddress).toObservable().asFlow().single()
@@ -36,7 +38,7 @@ class LockProvider @Inject constructor(
             wifiLock.init(lockInfo)
 //            BleLock(lockInfo)
 
-        locks[macAddress] = lock
+//        locks[macAddress] = lock
 
         return lock
     }
@@ -71,16 +73,16 @@ class LockProvider @Inject constructor(
 
         val wifiLock = wifiLock.init(lockInfo)
 
-//        if (!wifiLock.deviceProvisionCreate(
-//                serialNumber = lockInfo.serialNumber,
-//                deviceName = lockInfo.serialNumber,
-//                timeZone = ZoneId.systemDefault().id,
-//                timeZoneOffset = TimeZone.getDefault()
-//                    .getOffset(System.currentTimeMillis()) / 1000,
-//                clientToken = awsClientToken,
-//                model = lockInfo.model
-//            )
-//        ) return null
+        if (!wifiLock.deviceProvisionCreate(
+                serialNumber = lockInfo.serialNumber,
+                deviceName = lockInfo.deviceName,
+                timeZone = ZoneId.systemDefault().id,
+                timeZoneOffset = TimeZone.getDefault()
+                    .getOffset(System.currentTimeMillis()) / 1000,
+                clientToken = awsClientToken,
+                model = lockInfo.model
+            )
+        ) return null
 
         return wifiLock
     }

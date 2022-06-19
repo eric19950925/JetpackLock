@@ -8,10 +8,15 @@ import com.amazonaws.mobile.client.UserStateDetails
 import com.google.gson.GsonBuilder
 import com.sunion.ikeyconnect.BuildConfig
 import com.sunion.ikeyconnect.CognitoAuthRepository
+import com.sunion.ikeyconnect.RemoteDeviceRepositoryImpl
+import com.sunion.ikeyconnect.SunionIotServiceImpl
 import com.sunion.ikeyconnect.api.AccountAPI
+import com.sunion.ikeyconnect.api.DeviceAPI
 import com.sunion.ikeyconnect.data.PreferenceStorage
 import com.sunion.ikeyconnect.data.PreferenceStore
 import com.sunion.ikeyconnect.domain.Interface.AuthRepository
+import com.sunion.ikeyconnect.domain.Interface.RemoteDeviceRepository
+import com.sunion.ikeyconnect.domain.Interface.SunionIotService
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -48,7 +53,7 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(authRepository: AuthRepository): OkHttpClient {
+    fun provideOkHttpClient(): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.HEADERS
             level = HttpLoggingInterceptor.Level.BODY
@@ -59,6 +64,7 @@ object AppModule {
             .readTimeout(10, TimeUnit.SECONDS)
             .build()
     }
+
     @Provides
     @Singleton
     fun provideIkeyApi(client: OkHttpClient): AccountAPI = Retrofit.Builder()
@@ -75,10 +81,35 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideDeviceApi(client: OkHttpClient): DeviceAPI = Retrofit.Builder()
+        .baseUrl(BuildConfig.API_GATEWAY_ENDPOINT)
+        .client(client)
+        .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
+        .addConverterFactory(GsonConverterFactory.create(
+            GsonBuilder()
+            .setLenient()
+            .disableHtmlEscaping()
+            .create()))
+        .build()
+        .create(DeviceAPI::class.java)
+
+    @Provides
+    @Singleton
     fun provideCognitoRepository(awsMobileClient: AWSMobileClient): AuthRepository =
         CognitoAuthRepository(awsMobileClient, Dispatchers.IO)
 
+    @Provides
+    @Singleton
+    fun provideRemoteDeviceRepository(deviceAPI: DeviceAPI): RemoteDeviceRepository =
+        RemoteDeviceRepositoryImpl(deviceAPI)
+
+    @Provides
+    @Singleton
+    fun provideSunionService(remoteDeviceRepository: RemoteDeviceRepository): SunionIotService =
+        SunionIotServiceImpl(remoteDeviceRepository)
+
     @InstallIn(SingletonComponent::class)
+
     @Module
     abstract class Bind {
 //        @Binds

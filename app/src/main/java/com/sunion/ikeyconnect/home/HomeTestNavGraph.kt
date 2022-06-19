@@ -5,6 +5,9 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.navigation
+import com.sunion.ikeyconnect.add_lock.AddLockRoute
+import com.sunion.ikeyconnect.add_lock.connect_to_wifi.ConnectWifiScreen
+import com.sunion.ikeyconnect.add_lock.connect_to_wifi.ConnectWifiViewModel
 import com.sunion.ikeyconnect.add_lock.connect_to_wifi.WIfiListScreen
 import com.sunion.ikeyconnect.add_lock.connect_to_wifi.WifiListViewModel
 import com.sunion.ikeyconnect.add_lock.pairing.PairingScreen
@@ -25,8 +28,16 @@ fun NavGraphBuilder.homeTestGraph(
         composable("${HomeTestRoute.WifiList.route}/{macAddress}") { backStackEntry ->
             val macAddress = backStackEntry.arguments?.getString("macAddress") ?: ""
             val viewModel = hiltViewModel<WifiListViewModel>()
-            viewModel.init(macAddress)
+            viewModel.macAddress ?: viewModel.init(macAddress) //won't do twice now.
             WIfiListScreen(viewModel = viewModel, navController = navController)
+        }
+        //Todo connect wifi path for init viewModel
+        composable("${HomeTestRoute.ConnectWifi.route}/{macAddress}/{ssid}") { backStackEntry ->
+            val macAddress = backStackEntry.arguments?.getString("macAddress") ?: ""
+            val ssid = backStackEntry.arguments?.getString("ssid") ?: ""
+            val viewModel = hiltViewModel<ConnectWifiViewModel>()
+            viewModel.macAddress ?: viewModel.init(macAddress, ssid)
+            ConnectWifiScreen(viewModel = viewModel, navController = navController)
         }
     }
 }

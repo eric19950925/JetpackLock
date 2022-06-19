@@ -34,6 +34,7 @@ class WifiListViewModel @Inject constructor(
     private var lock: WifiLock? = null
     private var isLockDisconnected = false
     private var scanWifiJob: Job? = null
+    private var collectWifiListJob: Job? = null
 
     fun init(macAddress: String) {
         _uiState.value = WiFiListUiState()
@@ -43,10 +44,12 @@ class WifiListViewModel @Inject constructor(
             .flowOn(Dispatchers.IO)
             .onEach {
                 lock = it
+                Timber.d("Is lock connecting: "+it?.isConnected().toString())
                 it?.let {
                     collectBleConnectionState()
                     collectWifiList()
                     if (it.isConnected()) {
+//                        May need to wait 1 second to reduce failures
                         scanWIfi()
                     } else {
                         isLockDisconnected = true
@@ -60,7 +63,8 @@ class WifiListViewModel @Inject constructor(
 
     private fun collectWifiList() {
         val wifiLock = lock ?: return
-        wifiLock
+        collectWifiListJob?.cancel()
+        collectWifiListJob = wifiLock
             .collectWifiList()
             .flowOn(Dispatchers.IO)
             .onEach { wifi ->
@@ -85,10 +89,12 @@ class WifiListViewModel @Inject constructor(
             .connectionState2
             .onEach { state ->
                 Timber.d(state.toString())
-                if (state == BluetoothConnectState.CONNECTED && isLockDisconnected)
+                if (state == BluetoothConnectState.CONNECTED && isLockDisconnected) {
+                    collectWifiList()
                     scanWIfi()
-//                else if (state == BluetoothConnectState.DISCONNECTED)
-//                    reconnect()
+                }
+                else if (state == BluetoothConnectState.DISCONNECTED)
+                    reconnect()
             }
             .catch { Timber.e(it) }
             .launchIn(viewModelScope)
@@ -99,6 +105,7 @@ class WifiListViewModel @Inject constructor(
         isLockDisconnected = true
         runCatching { wifiLock.connect() }.getOrElse { Timber.e(it) }
 
+//Todo 沒有辦法重連，就要刪掉lock??
         flow { emit(delay(30000)) }
             .flowOn(Dispatchers.IO)
             .onEach {
@@ -114,10 +121,17 @@ class WifiListViewModel @Inject constructor(
 
     fun scanWIfi() {
         val wifiLock = lock ?: return
-        if (scanWifiJob != null) return // if is scaning, won't repeat to scan wifi.
+        if (scanWifiJob != null) return
         _uiState.update { it.copy(isScanning = true) }
+//        collectWifiList()
         scanWifiJob = viewModelScope.launch(Dispatchers.IO) {
+            delay(5000)
             runCatching { wifiLock.scanWifi() }.getOrElse { Timber.e(it) }
+            //show button after 10 sec
+            delay(10000)
+            if(uiState.value.isScanning){
+                _uiState.update { it.copy(isScanning = false) }
+            }
             scanWifiJob = null
         }
     }
