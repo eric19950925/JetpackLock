@@ -45,7 +45,7 @@ class ScanLockQRCodeViewModel @Inject constructor(
             emit(lockProvider.getLockByQRCode(content, awsClientToken))
         }
             .flowOn(Dispatchers.IO)
-            .take(1)
+//            .take(1)
             .onEach {
                 if (it == null) {
                     _uiState.update { state -> state.copy(message = "Cannot be paired with the device") }
@@ -56,6 +56,7 @@ class ScanLockQRCodeViewModel @Inject constructor(
                     try {
                         val lockInfo = saveLockInfoUseCase(it.lockInfo)
                         _uiEvent.emit(ScanLockQRCodeUiEvent.Complete(lockInfo.macAddress))
+                        return@launch
 //                        _uiEvent.emit(ScanLockQRCodeUiEvent.GotType(it))
                     } catch (e: Exception) {
                         Timber.e(e)

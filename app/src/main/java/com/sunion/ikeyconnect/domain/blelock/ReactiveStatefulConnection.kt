@@ -1,36 +1,26 @@
 package com.sunion.ikeyconnect.domain.blelock
 
-import android.annotation.SuppressLint
-import android.util.Log
-import android.util.Base64
-import com.jakewharton.rx.ReplayingShare
 import com.polidea.rxandroidble2.*
 import com.polidea.rxandroidble2.scan.ScanSettings
-import com.sunion.ikeyconnect.add_lock.connect_to_wifi.WiFiListUiState
 import com.sunion.ikeyconnect.domain.Interface.SunionWifiService
 import com.sunion.ikeyconnect.domain.Interface.WifiListResult
-import com.sunion.ikeyconnect.domain.blelock.IKeyCommand.Companion.CMD_CONNECT
+import com.sunion.ikeyconnect.domain.command.ConnectWifiCommand
+import com.sunion.ikeyconnect.domain.command.WifiConnectState
+import com.sunion.ikeyconnect.domain.command.WifiListCommand
 import com.sunion.ikeyconnect.domain.model.Event
 import com.sunion.ikeyconnect.domain.model.EventState
 import com.sunion.ikeyconnect.domain.model.LockInfo
 import com.sunion.ikeyconnect.domain.toHex
 import com.sunion.ikeyconnect.domain.usecase.device.BleHandShakeUseCase
-import com.sunion.ikeyconnect.lock.WifiConnectState
-import com.sunion.ikeyconnect.lock.WifiLock
-import com.sunion.ikeyconnect.unless
 import io.reactivex.Observable
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.disposables.Disposable
-import io.reactivex.schedulers.Schedulers
 import io.reactivex.subjects.PublishSubject
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.rx2.asFlow
 import timber.log.Timber
-import java.lang.reflect.InvocationTargetException
-import java.lang.reflect.Method
 import java.util.*
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -41,6 +31,7 @@ class ReactiveStatefulConnection @Inject constructor(
     private val bleHandShakeUseCase: BleHandShakeUseCase,
     private val mBleCmdRepository: BleCmdRepository,
     private val wifiListCommand: WifiListCommand,
+    private val connectWifiCommand: ConnectWifiCommand,
 ) : StatefulConnection, SunionWifiService {
 
     companion object {
@@ -311,26 +302,17 @@ class ReactiveStatefulConnection @Inject constructor(
             .setupNotification(NOTIFICATION_CHARACTERISTIC, NotificationSetupMode.DEFAULT)
             .flatMap { it }
             .asFlow()
-            .filter {
-//                mBleCmdRepository.decrypt(Base64.decode(keyTwo, Base64.DEFAULT), it)?.component3()
-//                    ?.unSignedInt() == 0xF0
-                wifiListCommand.match(keyTwo, it)
-            }
-            .map {
-                Timber.d(it.toHex())
-                wifiListCommand.parseResult(keyTwo, it)
-            }
-            .map { cmdResponse ->
-                Timber.d("cmdResponse:$cmdResponse")
-                if (cmdResponse == "LE")
-                    WifiListResult.End
-                else
-                    WifiListResult.Wifi(cmdResponse.substring(2), true)
+            .filter { wifiListCommand.match(keyTwo, it) }
+            .map { notification ->
+                Timber.d(notification.toHex())
+                val result = wifiListCommand.parseResult(keyTwo, notification)
+                Timber.d("cmdResponse:$result")
+                result
             }
     }
 
     override suspend fun scanWifi() {
-        val command = wifiListCommand.create(keyTwo)
+        val command = wifiListCommand.create(keyTwo, Unit)
         _rxBleConnection!!
             .writeCharacteristic(NOTIFICATION_CHARACTERISTIC, command).toObservable().asFlow()
             .flowOn(Dispatchers.IO)
@@ -344,20 +326,8 @@ class ReactiveStatefulConnection @Inject constructor(
             .setupNotification(NOTIFICATION_CHARACTERISTIC)
             .flatMap { it }
             .asFlow()
-            .onStart { connectWifiState.clear() }
-            .filter {
-                wifiListCommand.match(keyTwo, it)
-//                String(byteArrayOf(it[0])) == CMD_CONNECT
-            }
-            .map { wifiListCommand.parseResult(keyTwo, it) }
-            .map { cmdResponse ->
-                Timber.d(cmdResponse)
-                connectWifiState.add(cmdResponse)
-                WifiConnectState(
-                    isWifiConnected = connectWifiState.contains("CWiFi Succ"),
-                    isIotConnected = connectWifiState.contains("CMQTT Succ")
-                )
-            }
+            .filter { connectWifiCommand.match(keyTwo, it) }
+            .map { notification -> connectWifiCommand.parseResult(keyTwo, notification) }
 
     override suspend fun connectLockToWifi(ssid: String, password: String): Boolean {
         val connection = _rxBleConnection ?: return false

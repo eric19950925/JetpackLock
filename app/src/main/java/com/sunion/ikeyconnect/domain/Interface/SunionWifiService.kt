@@ -1,6 +1,6 @@
 package com.sunion.ikeyconnect.domain.Interface
 
-import com.sunion.ikeyconnect.lock.WifiConnectState
+import com.sunion.ikeyconnect.domain.command.WifiConnectState
 import kotlinx.coroutines.flow.Flow
 
 interface SunionWifiService {

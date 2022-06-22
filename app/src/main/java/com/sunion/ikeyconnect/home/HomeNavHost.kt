@@ -2,35 +2,20 @@ package com.sunion.ikeyconnect.home
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.jakewharton.processphoenix.ProcessPhoenix
 import com.sunion.ikeyconnect.account_management.memberGraph
-import com.sunion.ikeyconnect.R
 import com.sunion.ikeyconnect.add_lock.addLockGraph
 
 @Composable
-fun HomeNavHost(onLogoutClick: () -> Unit) {
+fun HomeNavHost(viewModel: HomeViewModel, onLogoutClick: () -> Unit) {
     val navController = rememberNavController()
     val mContext = LocalContext.current
     NavHost(navController = navController, startDestination = HomeRoute.Home.route) {
         composable(HomeRoute.Home.route) {
-            val viewModel = hiltViewModel<HomeViewModel>()
-            HomeScreen(
-                onAddLockClick = {
-                    navController.navigate(HomeRoute.AddLock.route)
-                },
-                onPersonClick = {
-                    navController.navigate(HomeRoute.MemberManagement.route)
-                },
-                onLockClick = {
-                    navController.navigate(HomeRoute.HomeTest.route)
-                },
-                showGuile = viewModel.showGuide.value,
-                onShowGuideClick = {viewModel.setGuideHasBeenSeen()}
-            )
+            HomeScreen(viewModel = viewModel, navController = navController)
         }
         memberGraph(
             navController = navController,
@@ -43,7 +28,7 @@ fun HomeNavHost(onLogoutClick: () -> Unit) {
         addLockGraph(
             navController = navController,
             route = HomeRoute.AddLock.route,
-//            onAddLockFinish = viewModel::boltOrientation
+            onAddLockFinish = viewModel::boltOrientation
         )
         homeTestGraph(
             navController = navController,
@@ -58,4 +43,5 @@ sealed class HomeRoute(val route: String) {
     object MemberManagement : HomeRoute("MemberManagement")
     object AddLock : HomeRoute("AddLock")
     object HomeTest : HomeRoute("HomeTest")
+    object Settings : HomeRoute("Settings")
 }

@@ -385,4 +385,5 @@ QR-Code on the lock]]></string>
     <string name="connect_to_wifi_lose_bluetooth_connection"><![CDATA[You have lost Bluetooth connection. Please reset the lock.]]></string>
     <string name="connect_to_wifi_password"><![CDATA[Password]]></string>
     <string name="connect_to_wifi_connect"><![CDATA[Connect]]></string>
+    <string name="updated_hours_ago"><![CDATA[Updated %s hours ago]]></string>
 </resources>

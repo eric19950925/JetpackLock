@@ -18,6 +18,9 @@ android {
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField "String", 'API_GATEWAY_ENDPOINT', "\"https://api.ikey-lock.com/v1/\""
+        buildConfigField "String", 'AWS_IOT_CORE_END_POINT', "\"a3jcdl3hkiliu4-ats.iot.us-east-1.amazonaws.com\""
+        buildConfigField "String", 'COGNITO_IDENTITY_POOL_ID', "\"us-east-1:8266c1e3-feeb-4795-9e3b-9e6facb2f9ff\""
+        buildConfigField "String", 'COGNITO_REGIONS', "\"us-east-1\""
     }
 
     buildTypes {
@@ -66,7 +69,7 @@ dependencies {
 
     //aws
     implementation "com.amazonaws:aws-android-sdk-mobile-client:2.42.0"
-    implementation 'com.amazonaws:aws-android-sdk-iot:2.7.0'
+    implementation 'com.amazonaws:aws-android-sdk-iot:2.48.1'
 
     implementation 'com.google.dagger:hilt-android:2.41'
     kapt 'com.google.dagger:hilt-android-compiler:2.38.1'
@@ -86,8 +89,11 @@ dependencies {
     implementation 'com.jakewharton.rx2:replaying-share-kotlin:2.2.0'
     implementation 'io.reactivex.rxjava2:rxandroid:2.1.1'
 
+    // accompanist
     implementation "com.google.accompanist:accompanist-appcompat-theme:$accompanist_version"
     implementation "com.google.accompanist:accompanist-permissions:$accompanist_version"
+    implementation "com.google.accompanist:accompanist-pager:$accompanist_version"
+    implementation "com.google.accompanist:accompanist-pager-indicators:$accompanist_version"
 
     // PASSWORD
     implementation "org.passay:passay:1.6.1"
@@ -110,4 +116,13 @@ dependencies {
 
     implementation "com.polidea.rxandroidble2:rxandroidble:1.13.1"
 
+    // Google map https://github.com/googlemaps/android-maps-ktx
+    implementation  "com.google.maps.android:maps-compose:2.2.1"
+    implementation 'com.google.android.gms:play-services-maps:18.0.2'
+    implementation 'com.google.android.gms:play-services-location:20.0.0'
+
+    // Image
+    implementation("io.coil-kt:coil:2.1.0")
+    implementation("io.coil-kt:coil-compose:2.1.0")
+    implementation("io.coil-kt:coil-gif:2.0.0-rc03")
 }

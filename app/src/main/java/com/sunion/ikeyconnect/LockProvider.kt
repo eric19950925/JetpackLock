@@ -23,8 +23,9 @@ class LockProvider @Inject constructor(
 
 
     override suspend fun getLockByMacAddress(macAddress: String): Lock? {
-//        if (locks.containsKey(macAddress))
-//            return locks[macAddress]
+        //若已經拿過就可以拿暫存的，加速
+        if (locks.containsKey(macAddress))
+            return locks[macAddress]
 
         val lockConnectionInfo = runCatching {
             lockInformationRepository.get(macAddress).toObservable().asFlow().single()
@@ -38,7 +39,7 @@ class LockProvider @Inject constructor(
             wifiLock.init(lockInfo)
 //            BleLock(lockInfo)
 
-//        locks[macAddress] = lock
+        locks[macAddress] = lock
 
         return lock
     }
@@ -50,8 +51,9 @@ class LockProvider @Inject constructor(
 
         val lockInfo = LockInfo.from(qrCodeContent)
 
-        if (locks.containsKey(lockInfo.macAddress))
-            return locks[lockInfo.macAddress]
+        //todo K1 will be FFFFF
+//        if (locks.containsKey(lockInfo.macAddress))
+//            return locks[lockInfo.macAddress]
 
         val newLock = if (getFirmwareModelTraits(lockInfo.model).contains(SunionTraits.WiFi))
             awsClientToken?.let { createWifiLock(lockInfo, it) }

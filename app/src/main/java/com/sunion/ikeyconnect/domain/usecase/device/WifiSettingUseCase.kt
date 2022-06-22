@@ -3,24 +3,19 @@ package com.sunion.ikeyconnect.domain.usecase.device
 import android.util.Base64
 import com.polidea.rxandroidble2.NotificationSetupMode
 import com.polidea.rxandroidble2.RxBleConnection
-import com.polidea.rxandroidble2.RxBleDevice
 import com.sunion.ikeyconnect.domain.Interface.LockInformationRepository
-import com.sunion.ikeyconnect.domain.Interface.SunionWifiService
-import com.sunion.ikeyconnect.domain.Interface.WifiListResult
 import com.sunion.ikeyconnect.domain.Interface.WifiSettingDomain
 import com.sunion.ikeyconnect.domain.blelock.BleCmdRepository
-import com.sunion.ikeyconnect.domain.blelock.WifiListCommand
+import com.sunion.ikeyconnect.domain.command.WifiListCommand
 import com.sunion.ikeyconnect.domain.blelock.unSignedInt
 import com.sunion.ikeyconnect.domain.toHex
 import com.sunion.ikeyconnect.domain.usecase.device.BleHandShakeUseCase.Companion.NOTIFICATION_CHARACTERISTIC
 import io.reactivex.Observable
-import io.reactivex.Single
 import io.reactivex.functions.BiFunction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.rx2.asFlow
 import timber.log.Timber
-import java.util.*
 import javax.inject.Inject
 import javax.inject.Singleton
 

@@ -86,6 +86,11 @@ data class DeviceProvisionDeleteRequest(
     @SerializedName("clientToken") val clientToken: String,
 )
 
+data class RequestPayload(
+    @SerializedName("API") val api: String,
+    @SerializedName("RequestBody") val requestBody: DeviceShadowUpdateLockRequest,
+    @SerializedName("Authorization") val authorization: String,
+)
 
 data class DeviceShadowUpdateLockRequest(
     @SerializedName("DeviceIdentity") val deviceIdentity: String,
@@ -105,6 +110,6 @@ data class DeviceShadowUpdateRunCheckRequest(
 ) {
     data class Desired(
         @SerializedName("Direction") val direction: String,
-        @SerializedName("Searchable") val searchable: Int,
+//        @SerializedName("Searchable") val searchable: Int,
     )
 }

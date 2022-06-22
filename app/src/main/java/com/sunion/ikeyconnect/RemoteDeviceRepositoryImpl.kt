@@ -88,7 +88,8 @@ class RemoteDeviceRepositoryImpl @Inject constructor(
             deviceIdentity = thingName,
             desired = DeviceShadowUpdateRunCheckRequest.Desired(
                 direction = "run_check",
-                searchable = 1650499727),
+//                searchable = 1650499727
+               ),
             clientToken = clientToken
         ))
     }
@@ -102,7 +103,7 @@ class RemoteDeviceRepositoryImpl @Inject constructor(
                 deadbolt = "lock",
 //                searchable = 1650499727
             ),
-            clientToken = "clientToken")
+            clientToken = clientToken)
         )
     }
 

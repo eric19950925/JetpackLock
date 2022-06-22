@@ -6,6 +6,7 @@ interface AuthRepository {
     fun signIn(username: String, password: String): Flow<String>
     fun signOut(): Flow<Unit>
     fun getIdToken(): Flow<String>
+    fun getIdentityId(): Flow<String>
     fun getStateDetails(): Flow<String>
 
     fun isSignedIn(): Flow<Boolean>

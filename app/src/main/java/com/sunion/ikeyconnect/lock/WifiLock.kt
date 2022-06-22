@@ -1,16 +1,15 @@
 package com.sunion.ikeyconnect.lock
 
-import com.polidea.rxandroidble2.RxBleClient
 import com.polidea.rxandroidble2.RxBleConnection
 import com.polidea.rxandroidble2.RxBleDevice
 import com.sunion.ikeyconnect.domain.Interface.*
 import com.sunion.ikeyconnect.domain.blelock.BluetoothConnectState
 import com.sunion.ikeyconnect.domain.blelock.ReactiveStatefulConnection
-import com.sunion.ikeyconnect.domain.blelock.WifiListCommand
+import com.sunion.ikeyconnect.domain.command.WifiConnectState
 import com.sunion.ikeyconnect.domain.exception.EmptyLockInfoException
 import com.sunion.ikeyconnect.domain.model.*
 import com.sunion.ikeyconnect.domain.usecase.account.GetIdTokenUseCase
-import com.sunion.ikeyconnect.domain.usecase.device.BleHandShakeUseCase
+import io.reactivex.Single
 import io.reactivex.disposables.Disposable
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -108,7 +107,26 @@ class WifiLock @Inject constructor(
     }
 
     override suspend fun delete(clientToken: String?) {
-        TODO("Not yet implemented")
+//        if (useWifi && isNetworkConnectedUseCase())
+            deleteByNetwork(clientToken)
+//        else
+//            deleteByBle()
+    }
+    private fun deleteByNetwork(clientToken: String?) {
+        lockInformationRepository
+            .get(lockInfo.macAddress)
+            .flatMap { lock ->
+                lockInformationRepository.delete(lock)
+                    .andThen(userCodeRepository.deleteAll(lockInfo.macAddress))
+                    .andThen(eventLogRepository.deleteAll(lockInfo.macAddress))
+                    .andThen(Single.just(lock.thingName ?: ""))
+            }
+            .toObservable()
+            .asFlow()
+            .flatMapConcat { flow { emit(iotService.delete(it, clientToken!!)) } }
+            .flowOn(Dispatchers.IO)
+            .catch { Timber.e(it) }
+            .launchIn(lockScope)
     }
 
     override fun collectWifiList(): Flow<WifiListResult> = statefulConnection.collectWifiList()
@@ -197,8 +215,3 @@ class WifiLock @Inject constructor(
     }
 
 }
-
-data class WifiConnectState(
-    val isWifiConnected: Boolean = false,
-    val isIotConnected: Boolean = false,
-)

@@ -79,6 +79,10 @@ class CognitoAuthRepository @Inject constructor(
         emit(mobileClient.tokens.idToken.tokenString)
     }
 
+    override fun getIdentityId(): Flow<String>  = flow {
+        emit(mobileClient.identityId)
+    }.flowOn(dispatcher)
+
     override fun getStateDetails(): Flow<String> = flow {
         emit(mobileClient.currentUserState().userState.name)
     }.flowOn(dispatcher)

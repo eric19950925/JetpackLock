@@ -11,26 +11,64 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Devices
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
+import com.google.accompanist.pager.ExperimentalPagerApi
+import com.google.accompanist.pager.rememberPagerState
 import com.sunion.ikeyconnect.R
+import com.sunion.ikeyconnect.home.component.Empty
+import com.sunion.ikeyconnect.home.component.Locks
 import com.sunion.ikeyconnect.ui.theme.FuhsingSmartLockV2AndroidTheme
-import com.sunion.ikeyconnect.ui.theme.colorPrimaryMediumSize18
 import kotlinx.coroutines.launch
 
 @Composable
+fun HomeScreen(viewModel: HomeViewModel, navController: NavController){
+    val uiState = viewModel.uiState.collectAsState().value
+
+    HomeScreen(
+        state = uiState,
+        onAddLockClick = {
+            navController.navigate(HomeRoute.AddLock.route)
+        },
+        onPersonClick = {
+            navController.navigate(HomeRoute.MemberManagement.route)
+        },
+        onLockClick = viewModel::onLockClick,
+        onShowGuideClick = viewModel::setGuideHasBeenSeen,
+        onSettingClick = { macAddress ->
+            navController.navigate(
+                "${HomeRoute.Settings.route}/$macAddress/${viewModel.isConnected(macAddress)}"
+            )
+        },
+        getUpdateTime = viewModel::getUpdateTime,
+        onLockNameChange = viewModel::setLockName,
+        onPageChangeByUser = viewModel::setCurrentPage,
+        onSaveNameClick = viewModel::saveName,
+    )
+}
+
+
+@OptIn(ExperimentalPagerApi::class)
+@Composable
 fun HomeScreen(
+    state: HomeUiState,
     onAddLockClick: () -> Unit,
     onPersonClick: () -> Unit,
+    onShowGuideClick: () -> Unit,
+    onSettingClick: (String) -> Unit,
     onLockClick: () -> Unit,
-    showGuile: Boolean,
+    getUpdateTime: (String) -> Int?,
+    onLockNameChange: (String, String) -> Unit,
+    currentPage: Int = 0,
+    boltToastState: Boolean? = null,
+    onPageChangeByUser: (Int) -> Unit = {},
+    onSaveNameClick: (String) -> Unit,
     modifier: Modifier = Modifier,
-    onShowGuideClick: () -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
     val scaffoldState = rememberScaffoldState()
+    val pagerState = rememberPagerState()
 
     Scaffold(
         scaffoldState = scaffoldState,
@@ -72,37 +110,49 @@ fun HomeScreen(
         drawerBackgroundColor = Color.White,
         modifier = modifier
     ) {
-        Box(modifier = Modifier.fillMaxSize().background(Color.White), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Image(
-                    painter = painterResource(id = R.drawable.logo_mark),
-                    contentDescription = "logo",
-                    modifier = Modifier.size(dimensionResource(id = R.dimen.space_91))
+        Box(modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White), contentAlignment = Alignment.Center) {
+            if (state.locks.isEmpty())
+                Empty(modifier = Modifier.align(Alignment.Center))
+            else
+                Locks(
+                    locks = state.locks,
+                    pagerState = pagerState,
+                    onAutoUnlockClock = {},
+                    onManageClick = {},
+                    onUserCodeClick = {},
+                    onSettingClick = onSettingClick,
+                    onLockClick = onLockClick,
+                    onLockNameChange = onLockNameChange,
+                    getUpdateTime = getUpdateTime,
+                    onSaveNameClick = onSaveNameClick,
+                    networkAvailable = state.networkAvailable,
                 )
-                Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.space_57)))
-                Text(
-                    text = stringResource(id = R.string.add_lock_no_locks),
-                    style = MaterialTheme.typography.colorPrimaryMediumSize18
-                )
-                Button(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(8.dp),
-                    onClick = onLockClick
-                ){ Text("7B126A") }
-            }
         }
+
     }
 
-//    if (showGuile)
-//        HomeGuideScreen(modifier = Modifier.clickable(onClick = onShowGuideClick))
+    if (state.showGuide)
+        HomeGuideScreen(modifier = Modifier.clickable(onClick = onShowGuideClick))
 }
 
 @Preview
 @Composable
 private fun Preview() {
     FuhsingSmartLockV2AndroidTheme {
-        HomeScreen(onAddLockClick = {}, onPersonClick = {}, onLockClick = {}, showGuile = true) {}
+        HomeScreen(
+            state = HomeUiState(),
+            onAddLockClick = {},
+            onPersonClick = {},
+            onShowGuideClick = {},
+            onSettingClick = {},
+            onLockClick = {},
+            getUpdateTime = { 2 },
+            onLockNameChange = { _, _ -> },
+            boltToastState = false,
+            onSaveNameClick = {}
+        )
     }
 }
 
@@ -110,7 +160,18 @@ private fun Preview() {
 @Composable
 private fun Preview2() {
     FuhsingSmartLockV2AndroidTheme {
-        HomeScreen(onAddLockClick = {}, onPersonClick = {}, onLockClick = {}, showGuile = false) {}
+        HomeScreen(
+            state = HomeUiState(),
+            onAddLockClick = {},
+            onPersonClick = {},
+            onShowGuideClick = {},
+            onSettingClick = {},
+            onLockClick = {},
+            getUpdateTime = { 2 },
+            onLockNameChange = { _, _ -> },
+            boltToastState = false,
+            onSaveNameClick = {}
+        )
     }
 }
 
@@ -119,6 +180,17 @@ private fun Preview2() {
 @Composable
 private fun Preview3() {
     FuhsingSmartLockV2AndroidTheme {
-        HomeScreen(onAddLockClick = {}, onPersonClick = {}, onLockClick = {}, showGuile = true) {}
+        HomeScreen(
+            state = HomeUiState(),
+            onAddLockClick = {},
+            onPersonClick = {},
+            onShowGuideClick = {},
+            onSettingClick = {},
+            onLockClick = {},
+            getUpdateTime = { 2 },
+            onLockNameChange = { _, _ -> },
+            boltToastState = false,
+            onSaveNameClick = {}
+        )
     }
 }

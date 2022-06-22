@@ -9,14 +9,17 @@ import com.sunion.ikeyconnect.add_lock.connect_to_wifi.ConnectWifiScreen
 import com.sunion.ikeyconnect.add_lock.connect_to_wifi.ConnectWifiViewModel
 import com.sunion.ikeyconnect.add_lock.connect_to_wifi.WIfiListScreen
 import com.sunion.ikeyconnect.add_lock.connect_to_wifi.WifiListViewModel
+import com.sunion.ikeyconnect.add_lock.lock_overview.LockOverviewScreen
+import com.sunion.ikeyconnect.add_lock.lock_overview.LockOverviewViewModel
 import com.sunion.ikeyconnect.add_lock.pairing.PairingScreen
 import com.sunion.ikeyconnect.add_lock.pairing.PairingViewModel
 import com.sunion.ikeyconnect.add_lock.scan_qrcode.ScanLockPermissionScreen
 import com.sunion.ikeyconnect.add_lock.scan_qrcode.ScanLockQRCodeScreen
+import com.sunion.ikeyconnect.home.HomeRoute
 
 fun NavGraphBuilder.addLockGraph(
     navController: NavController,
-//    onAddLockFinish: (String) -> Unit,
+    onAddLockFinish: (String) -> Unit,
     route: String
 ) {
     navigation(startDestination = AddLockRoute.ScanPermission.route, route = route) {
@@ -44,7 +47,7 @@ fun NavGraphBuilder.addLockGraph(
         composable("${AddLockRoute.Pairing.route}/{macAddress}") { backStackEntry ->
             val macAddress = backStackEntry.arguments?.getString("macAddress") ?: ""
             val viewModel = hiltViewModel<PairingViewModel>()
-            /*viewModel.macAddress ?: */viewModel.init(macAddress)
+            viewModel.macAddress ?: viewModel.init(macAddress)
             PairingScreen(viewModel = viewModel, navController = navController)
         }
         composable("${AddLockRoute.WifiList.route}/{macAddress}") { backStackEntry ->
@@ -80,15 +83,15 @@ fun NavGraphBuilder.addLockGraph(
         }
         composable("${AddLockRoute.LockOverview.route}/{macAddress}") { backStackEntry ->
             val macAddress = backStackEntry.arguments?.getString("macAddress") ?: ""
-//            val viewModel = hiltViewModel<LockOverviewViewModel>()
-//            viewModel.macAddress ?: viewModel.init(macAddress)
-//            LockOverviewScreen(
-//                viewModel = viewModel,
-//                onCompleteClick = {
-//                    navController.popBackStack(HomeRoute.Home.route, false)
-//                    viewModel.macAddress?.let { onAddLockFinish(it) }
-//                }
-//            )
+            val viewModel = hiltViewModel<LockOverviewViewModel>()
+            viewModel.macAddress ?: viewModel.init(macAddress)
+            LockOverviewScreen(
+                viewModel = viewModel,
+                onCompleteClick = {
+                    navController.popBackStack(HomeRoute.Home.route, false)
+                    viewModel.macAddress?.let { onAddLockFinish(it) }
+                }
+            )
         }
     }
 }

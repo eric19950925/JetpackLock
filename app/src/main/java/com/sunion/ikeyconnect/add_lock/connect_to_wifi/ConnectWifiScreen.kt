@@ -36,7 +36,7 @@ fun ConnectWifiScreen(viewModel: ConnectWifiViewModel, navController: NavControl
         viewModel.uiEvent.collect {
             when (it) {
                 ConnectWifiUiEvent.ConnectSuccess ->
-                    navController.navigate("${AddLockRoute.AdminCode.route}/${viewModel.macAddress}")
+                    navController.navigate("${AddLockRoute.LockOverview.route}/${viewModel.macAddress}")
                 ConnectWifiUiEvent.ConnectFailed ->
                     navController.navigate("${AddLockRoute.Pairing.route}/${viewModel.macAddress}")
                 ConnectWifiUiEvent.BleDisconnected ->
@@ -47,6 +47,9 @@ fun ConnectWifiScreen(viewModel: ConnectWifiViewModel, navController: NavControl
                     Toast.makeText(context,
                         "Connecting",
                         Toast.LENGTH_SHORT).show()
+                ConnectWifiUiEvent.ResetWifi -> {
+                    navController.navigate("${AddLockRoute.Pairing.route}/${viewModel.macAddress}")
+                }
             }
         }
     }

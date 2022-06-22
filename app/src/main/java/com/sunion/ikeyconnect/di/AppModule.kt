@@ -2,22 +2,20 @@ package com.sunion.ikeyconnect.di
 
 import android.app.Application
 import android.util.Log
+import com.amazonaws.auth.CognitoCachingCredentialsProvider
 import com.amazonaws.mobile.client.AWSMobileClient
 import com.amazonaws.mobile.client.Callback
 import com.amazonaws.mobile.client.UserStateDetails
+import com.amazonaws.mobileconnectors.iot.AWSIotMqttManager
+import com.amazonaws.regions.Regions
+import com.google.gson.Gson
 import com.google.gson.GsonBuilder
-import com.sunion.ikeyconnect.BuildConfig
-import com.sunion.ikeyconnect.CognitoAuthRepository
-import com.sunion.ikeyconnect.RemoteDeviceRepositoryImpl
-import com.sunion.ikeyconnect.SunionIotServiceImpl
+import com.sunion.ikeyconnect.*
 import com.sunion.ikeyconnect.api.AccountAPI
 import com.sunion.ikeyconnect.api.DeviceAPI
-import com.sunion.ikeyconnect.data.PreferenceStorage
-import com.sunion.ikeyconnect.data.PreferenceStore
 import com.sunion.ikeyconnect.domain.Interface.AuthRepository
 import com.sunion.ikeyconnect.domain.Interface.RemoteDeviceRepository
 import com.sunion.ikeyconnect.domain.Interface.SunionIotService
-import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -29,6 +27,7 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory
 import retrofit2.converter.gson.GsonConverterFactory
+import java.util.*
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
@@ -95,6 +94,24 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideAWSIotMqttManager(): AWSIotMqttManager = AWSIotMqttManager(UUID.randomUUID().toString(), BuildConfig.AWS_IOT_CORE_END_POINT)
+
+    @Provides
+    @Singleton
+    fun provideCognitoCachingCredentialsProvider(application: Application): CognitoCachingCredentialsProvider =
+        CognitoCachingCredentialsProvider(application, BuildConfig.COGNITO_IDENTITY_POOL_ID, Regions.US_EAST_1)
+
+    @Provides
+    @Singleton
+    fun provideTopicRepository() = TopicRepositoryImpl()
+
+    @Provides
+    @Singleton
+    fun provideStatefulConnection(awsIotMqttManager: AWSIotMqttManager, topicRepositoryImpl: TopicRepositoryImpl, gson: Gson) =
+        MqttStatefulConnection(awsIotMqttManager, topicRepositoryImpl, gson)
+
+    @Provides
+    @Singleton
     fun provideCognitoRepository(awsMobileClient: AWSMobileClient): AuthRepository =
         CognitoAuthRepository(awsMobileClient, Dispatchers.IO)
 
@@ -107,6 +124,10 @@ object AppModule {
     @Singleton
     fun provideSunionService(remoteDeviceRepository: RemoteDeviceRepository): SunionIotService =
         SunionIotServiceImpl(remoteDeviceRepository)
+
+    @Provides
+    @Singleton
+    fun provideGson(): Gson = Gson()
 
     @InstallIn(SingletonComponent::class)
 

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sunion.ikeyconnect.LockProvider
 import com.sunion.ikeyconnect.domain.blelock.BluetoothConnectState
+import com.sunion.ikeyconnect.domain.command.WifiConnectState
 import com.sunion.ikeyconnect.domain.usecase.account.GetClientTokenUseCase
 import com.sunion.ikeyconnect.lock.WifiLock
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -68,18 +69,22 @@ class ConnectWifiViewModel @Inject constructor(
                 .onCompletion { isCollectingConnectToWifiState = false }
                 .onEach { wifiConnectState ->
                     _uiState.update {
-                        it.copy(progressMessage =
-                        if (wifiConnectState.isWifiConnected)
-                            "Connect to iot..."
-                        else
-                            "Connect to wifi..."
+                        it.copy(
+                            progressMessage =
+                            when (wifiConnectState) {
+                                WifiConnectState.ConnectWifiSuccess -> "Connect to iot..."
+                                WifiConnectState.ConnectWifiFail -> "Connect wifi fail."
+                                WifiConnectState.ConnectAwsSuccess -> "Connect to cloud..."
+                                WifiConnectState.ConnectCloudSuccess -> "Connected cloud."
+                                WifiConnectState.Failed -> "Unknown error"
+                            }
                         )
                     }
 
-                    if (wifiConnectState.isWifiConnected && wifiConnectState.isIotConnected) {
+                    if (wifiConnectState == WifiConnectState.ConnectCloudSuccess) {
                         isConnectingToWifi = false
                         wifiLock
-                            .getAndSaveThingName(getClientTokenUseCase())
+                            .getAndSaveThingName(getClientTokenUseCase())//todo not necessary
                             .flowOn(Dispatchers.IO)
                             .onEach {
                                 _uiEvent.emit(ConnectWifiUiEvent.ConnectSuccess)
@@ -87,6 +92,9 @@ class ConnectWifiViewModel @Inject constructor(
                             }
                             .catch { Timber.e(it) }
                             .launchIn(viewModelScope)
+                    }
+                    else if (wifiConnectState == WifiConnectState.ConnectWifiFail) {
+                        viewModelScope.launch { _uiEvent.emit(ConnectWifiUiEvent.ResetWifi) }
                     }
                 }
                 .catch {
@@ -142,7 +150,7 @@ class ConnectWifiViewModel @Inject constructor(
             if (lock?.isConnected() != true) {
                 _uiState.update { it.copy(showDisconnect = true) }
                 lock?.disconnect()
-//                lock?.delete(getClientTokenUseCase())
+                lock?.delete(getClientTokenUseCase())
             }
         }
     }
@@ -161,4 +169,5 @@ sealed class ConnectWifiUiEvent {
     object ConnectFailed : ConnectWifiUiEvent()
     object BleDisconnected : ConnectWifiUiEvent()
     object BleConnecting : ConnectWifiUiEvent()
+    object ResetWifi : ConnectWifiUiEvent()
 }
