@@ -373,14 +373,14 @@ private fun ActionRow(
             iconResId = R.drawable.ic_lock_open_white,
             modifier = Modifier.alpha(if (isDisconnected) 0f else 1f)
         )
-        if (permission == DeviceToken.PERMISSION_ALL)
+        if (true/*permission == DeviceToken.PERMISSION_ALL*/)
             ActionButton(
                 onClick = { if (!isDisconnected) onManageClick(macAddress) },
                 textResId = R.string.toolbar_users,
                 iconResId = R.drawable.ic_managers,
                 modifier = Modifier.alpha(if (isDisconnected) 0f else 1f)
             )
-        if (permission == DeviceToken.PERMISSION_ALL)
+        if (true/*permission == DeviceToken.PERMISSION_ALL*/)
             ActionButton(
                 onClick = { if (!isDisconnected) onUserCodeClick(macAddress) },
                 textResId = R.string.toolbar_user_code,
@@ -447,7 +447,7 @@ private fun Preview(@PreviewParameter(LocksPreviewParameterProvider::class) uiSt
 class LocksPreviewParameterProvider : PreviewParameterProvider<HomeUiState> {
     override val values = sequenceOf(
         HomeUiState(
-            locks = listOf(
+            locks = mutableListOf(
 //                ConnectedDevice(
 //                    macAddress = "WiFiLock",
 //                    connectionState = BluetoothConnectState.CONNECTED,

@@ -65,6 +65,7 @@ class WifiLock @Inject constructor(
 
     override fun disconnect() {
         connectionDisposable?.dispose()
+        statefulConnection.close()
     }
 
     override fun isConnected(): Boolean = statefulConnection.getIsConnected()

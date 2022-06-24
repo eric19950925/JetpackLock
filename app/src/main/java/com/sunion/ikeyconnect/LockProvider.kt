@@ -52,8 +52,8 @@ class LockProvider @Inject constructor(
         val lockInfo = LockInfo.from(qrCodeContent)
 
         //todo K1 will be FFFFF
-//        if (locks.containsKey(lockInfo.macAddress))
-//            return locks[lockInfo.macAddress]
+        if (locks.containsKey(lockInfo.macAddress))
+            return locks[lockInfo.macAddress]
 
         val newLock = if (getFirmwareModelTraits(lockInfo.model).contains(SunionTraits.WiFi))
             awsClientToken?.let { createWifiLock(lockInfo, it) }
@@ -87,18 +87,5 @@ class LockProvider @Inject constructor(
         ) return null
 
         return wifiLock
-    }
-
-    /**
-     * check is wifi lock or ble lock
-     */
-    fun getLockTypeByQRCode(content: String): Boolean? {
-        val qrCodeContent = runCatching { LockQRCodeParser.parseQRCodeContent(content) }.getOrNull()
-            ?: runCatching { LockQRCodeParser.parseWifiQRCodeContent(content) }.getOrNull()
-            ?: return null
-
-        val lockInfo = LockInfo.from(qrCodeContent)
-
-        return lockInfo.model.contentEquals("wifi", ignoreCase = true)
     }
 }

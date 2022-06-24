@@ -41,11 +41,8 @@ class ScanLockQRCodeViewModel @Inject constructor(
 
         flow {
             val awsClientToken = getClientTokenUseCase()
-//            emit(getLockTypeByQRCode(content))
             emit(lockProvider.getLockByQRCode(content, awsClientToken))
         }
-            .flowOn(Dispatchers.IO)
-//            .take(1)
             .onEach {
                 if (it == null) {
                     _uiState.update { state -> state.copy(message = "Cannot be paired with the device") }
@@ -56,8 +53,6 @@ class ScanLockQRCodeViewModel @Inject constructor(
                     try {
                         val lockInfo = saveLockInfoUseCase(it.lockInfo)
                         _uiEvent.emit(ScanLockQRCodeUiEvent.Complete(lockInfo.macAddress))
-                        return@launch
-//                        _uiEvent.emit(ScanLockQRCodeUiEvent.GotType(it))
                     } catch (e: Exception) {
                         Timber.e(e)
                         if (e is LockAlreadyExistedException)
@@ -71,6 +66,7 @@ class ScanLockQRCodeViewModel @Inject constructor(
                     }
                 }
             }
+            .flowOn(Dispatchers.IO)
             .catch {
                 Timber.e(it)
                 _uiState.update { state -> state.copy(message = "Cannot be paired with the device") }
@@ -78,21 +74,6 @@ class ScanLockQRCodeViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
-
-    /**
-     * check is wifi lock or ble lock
-     */
-    fun getLockTypeByQRCode(content: String): String? {
-        val qrCodeContent = runCatching { LockQRCodeParser.parseQRCodeContent(content) }.getOrNull()
-            ?: runCatching { LockQRCodeParser.parseWifiQRCodeContent(content) }.getOrNull()
-            ?: return null
-
-        val lockInfo = LockInfo.from(qrCodeContent)
-//        Log.d("TAG",qrCodeContent.toString())
-// TODO 傳 mac 到下一頁 做 RxBle 連線
-//        return getFirmwareModelTraits(lockInfo.model).contains(SunionTraits.WiFi)
-        return lockInfo.macAddress
-    }
 
     fun setQRCodeImageUri(uri: Uri?) {
         if (uri == null) {
@@ -118,5 +99,4 @@ data class ScanLockQRCodeUiState(val isTorchOn: Boolean = false, val message: St
 
 sealed class ScanLockQRCodeUiEvent {
     data class Complete(val macAddress: String) : ScanLockQRCodeUiEvent()
-    data class GotType(val isWifiLock: String) : ScanLockQRCodeUiEvent()
 }

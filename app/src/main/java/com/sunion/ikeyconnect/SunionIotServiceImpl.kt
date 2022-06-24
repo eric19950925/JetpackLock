@@ -27,7 +27,7 @@ class SunionIotServiceImpl @Inject constructor(
             remoteDeviceRepository.create(
                 idToken,
                 DeviceProvisionCreateRequest(
-                    applicationID = "Sunion_20220620",
+                    applicationID = "Sunion_20220617",
                     model = model,
                     serialNumber = serialNumber,
                     deviceName = deviceName,

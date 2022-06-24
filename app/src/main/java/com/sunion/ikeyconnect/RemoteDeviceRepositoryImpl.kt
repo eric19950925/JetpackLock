@@ -109,14 +109,14 @@ class RemoteDeviceRepositoryImpl @Inject constructor(
 
     override suspend fun unlock(idToken: String, thingName: String, clientToken: String) {
         deviceAPI.deviceShadowUpdateLock(
-            idToken = idToken,
+            idToken = "Bearer $idToken",
             request = DeviceShadowUpdateLockRequest(
             deviceIdentity = thingName,
             desired = DeviceShadowUpdateLockRequest.Desired(
                 deadbolt = "unlock",
 //                searchable = 1650499727
             ),
-            clientToken = "clientToken")
+            clientToken = clientToken)
         )
     }
 }

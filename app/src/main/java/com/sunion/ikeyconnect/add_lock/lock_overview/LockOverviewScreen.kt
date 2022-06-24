@@ -115,7 +115,7 @@ private fun PreviewDefault() {
         LockOverviewScreen(
             state = LockOverviewUiState(
                 lockName = "Front door lock",
-                userName = "Andy Wang",
+                userName = "Eric",
                 location = LatLng(25.0330, 121.5654)
             ),
             onCompleteClick = {}
@@ -130,7 +130,7 @@ private fun PreviewWithSkip() {
         LockOverviewScreen(
             state = LockOverviewUiState(
                 lockName = "Front door lock",
-                userName = "Andy Wang"
+                userName = "Eric"
             ),
             onCompleteClick = {}
         )

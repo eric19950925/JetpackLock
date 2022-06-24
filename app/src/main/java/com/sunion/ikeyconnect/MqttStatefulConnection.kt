@@ -1,21 +1,14 @@
 package com.sunion.ikeyconnect
 
-import androidx.lifecycle.viewModelScope
 import com.amazonaws.auth.AWSCredentialsProvider
 import com.amazonaws.mobileconnectors.iot.AWSIotMqttClientStatusCallback
 import com.amazonaws.mobileconnectors.iot.AWSIotMqttManager
 import com.amazonaws.mobileconnectors.iot.AWSIotMqttNewMessageCallback
 import com.amazonaws.mobileconnectors.iot.AWSIotMqttQos
-import com.google.gson.Gson
-import com.sunion.ikeyconnect.domain.model.Event
-import com.sunion.ikeyconnect.domain.model.sunion_service.DeviceShadowUpdateLockRequest
-import com.sunion.ikeyconnect.domain.model.sunion_service.RequestPayload
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.flow
 import timber.log.Timber
-import java.io.UnsupportedEncodingException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -23,11 +16,11 @@ import javax.inject.Singleton
 class MqttStatefulConnection @Inject constructor(
     private val mqttManager: AWSIotMqttManager,
     private val repo: TopicRepositoryImpl,
-
-    private val gson: Gson
 ){
     private val _connectionState = MutableSharedFlow<Boolean>()
     val connectionState: SharedFlow<Boolean> = _connectionState
+    private val topicSubscribedList = mutableListOf<String>()
+
 //    private var mqttConnectionScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     fun connectMqtt(awsCredentialsProvider: AWSCredentialsProvider) {
         val mAWSIotMqttClientStatusCallback =
@@ -74,20 +67,33 @@ class MqttStatefulConnection @Inject constructor(
     }
 
     fun subUpdateThingShadow(thingName: String, callback: AWSIotMqttNewMessageCallback){
+        if(topicSubscribedList.contains(repo.thingUpdateDocTopic(thingName)))return
+        topicSubscribedList.add(repo.thingUpdateDocTopic(thingName))
         mqttManager.subscribeToTopic(repo.thingUpdateDocTopic(thingName), AWSIotMqttQos.QOS0, callback)
     }
 
     fun subPubGetDeviceShadow(thingName: String, callbackForMqtt: AWSIotMqttNewMessageCallback) {
-        mqttManager.subscribeToTopic(repo.thingGetAcceptedTopic(thingName), AWSIotMqttQos.QOS0, callbackForMqtt)
-        mqttManager.subscribeToTopic(repo.thingGetRejectedTopic(thingName), AWSIotMqttQos.QOS0, callbackForMqtt)
+        /** Remember the topics you had subscribed */
+        if(!topicSubscribedList.contains(repo.thingGetAcceptedTopic(thingName))){
+            topicSubscribedList.add(repo.thingGetAcceptedTopic(thingName))
+            topicSubscribedList.add(repo.thingGetRejectedTopic(thingName))
+            mqttManager.subscribeToTopic(repo.thingGetAcceptedTopic(thingName), AWSIotMqttQos.QOS0, callbackForMqtt)
+            mqttManager.subscribeToTopic(repo.thingGetRejectedTopic(thingName), AWSIotMqttQos.QOS0, callbackForMqtt)
+        }
+
         val payload = "{\"clientToken\":\"${thingName}\"}"
 
         mqttManager.publishString(payload, repo.thingGetTopic(thingName), AWSIotMqttQos.QOS0)
     }
 
     fun subscribeApiPortal(idToken: String, identityId: String, callbackForMqtt: AWSIotMqttNewMessageCallback) {
-        mqttManager.subscribeToTopic(repo.apiPortalAcceptedTopic(identityId), AWSIotMqttQos.QOS0, callbackForMqtt)
-        mqttManager.subscribeToTopic(repo.apiPortalRejectedTopic(identityId), AWSIotMqttQos.QOS0, callbackForMqtt)
+        if(!topicSubscribedList.contains(repo.apiPortalAcceptedTopic(identityId))){
+            topicSubscribedList.add(repo.apiPortalAcceptedTopic(identityId))
+            topicSubscribedList.add(repo.apiPortalRejectedTopic(identityId))
+            mqttManager.subscribeToTopic(repo.apiPortalAcceptedTopic(identityId), AWSIotMqttQos.QOS0, callbackForMqtt)
+            mqttManager.subscribeToTopic(repo.apiPortalRejectedTopic(identityId), AWSIotMqttQos.QOS0, callbackForMqtt)
+        }
+
         val payload =
             "{\"API\":\"device-list\",\"RequestBody\":{\"clientToken\":\"AAA\"},\"Authorization\":\"${idToken}\"}"
 

@@ -20,10 +20,8 @@ import javax.inject.Inject
 @HiltViewModel
 class WifiListViewModel @Inject constructor(
     private val getClientTokenUseCase: GetClientTokenUseCase,
-    private val statefulConnection: ReactiveStatefulConnection,
     private val lockProvider: LockProvider,
-    ) :
-    ViewModel() {
+) : ViewModel() {
     private val _uiState = MutableStateFlow(WiFiListUiState())
     val uiState: StateFlow<WiFiListUiState> = _uiState
 
@@ -44,7 +42,6 @@ class WifiListViewModel @Inject constructor(
             .flowOn(Dispatchers.IO)
             .onEach {
                 lock = it
-                Timber.d("Is lock connecting: "+it?.isConnected().toString())
                 it?.let {
                     collectBleConnectionState()
                     collectWifiList()
@@ -105,14 +102,14 @@ class WifiListViewModel @Inject constructor(
         isLockDisconnected = true
         runCatching { wifiLock.connect() }.getOrElse { Timber.e(it) }
 
-//Todo 沒有辦法重連，就要刪掉lock??
-        flow { emit(delay(30000)) }
+        //Todo 沒有辦法重連，就要刪掉lock?? -> 5min
+        flow { emit(delay(300000)) }
             .flowOn(Dispatchers.IO)
             .onEach {
                 if (!wifiLock.isConnected()) {
                     _uiState.update { it.copy(showDisconnect = true) }
                     wifiLock.disconnect()
-//                    wifiLock.delete(getClientTokenUseCase())
+                    wifiLock.delete(getClientTokenUseCase())
                 }
             }
             .catch { Timber.e(it) }
@@ -125,7 +122,7 @@ class WifiListViewModel @Inject constructor(
         _uiState.update { it.copy(isScanning = true) }
 //        collectWifiList()
         scanWifiJob = viewModelScope.launch(Dispatchers.IO) {
-            delay(5000)
+            delay(1000)
             runCatching { wifiLock.scanWifi() }.getOrElse { Timber.e(it) }
             //show button after 10 sec
             delay(10000)

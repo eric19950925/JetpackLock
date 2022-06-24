@@ -107,8 +107,8 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideStatefulConnection(awsIotMqttManager: AWSIotMqttManager, topicRepositoryImpl: TopicRepositoryImpl, gson: Gson) =
-        MqttStatefulConnection(awsIotMqttManager, topicRepositoryImpl, gson)
+    fun provideStatefulConnection(awsIotMqttManager: AWSIotMqttManager, topicRepositoryImpl: TopicRepositoryImpl) =
+        MqttStatefulConnection(awsIotMqttManager, topicRepositoryImpl)
 
     @Provides
     @Singleton

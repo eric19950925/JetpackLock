@@ -70,6 +70,16 @@ fun HomeScreen(
     val scaffoldState = rememberScaffoldState()
     val pagerState = rememberPagerState()
 
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.currentPage }.collect { page ->
+            onPageChangeByUser(page)
+        }
+    }
+
+    LaunchedEffect(key1 = currentPage) {
+        pagerState.animateScrollToPage(currentPage)
+    }
+
     Scaffold(
         scaffoldState = scaffoldState,
         topBar = {

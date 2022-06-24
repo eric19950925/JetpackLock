@@ -23,6 +23,7 @@ fun BarcodeScan(
     var lock by remember { mutableStateOf(false) }
     val current = LocalContext.current
     var captureManager by remember { mutableStateOf<CaptureManager?>(null) }
+
     DisposableEffect(key1 = true, effect = {
         onDispose {
             captureManager?.apply {
@@ -31,6 +32,7 @@ fun BarcodeScan(
             }
         }
     })
+
     AndroidView(
         factory = { context ->
             (LayoutInflater.from(context)
@@ -48,6 +50,7 @@ fun BarcodeScan(
                             return@decodeContinuous
                         it.text?.let { barCodeOrQr ->
                             onScanResult(barCodeOrQr)
+                            captureManager?.onPause()
                             lock = true
                             coroutineScope.launch {
                                 delay(2000)

@@ -83,6 +83,14 @@ class ReactiveStatefulConnection @Inject constructor(
     fun connect_asflow(lockInfo: LockInfo) {
 
         //todo 30sec timeout
+        connectionTimerJob = coroutineScope.launch {
+            Timber.d("coroutineScope 30 sec")
+            delay(30000)
+            connectionDisposable?.dispose()
+            _bleDevice = null
+            scanJob?.cancel()
+            emitConnectionState(Event.error(TimeoutException::class.java.simpleName))
+        }
 //        rxBleClient.getBleDevice(macAddress)
 //            .let {
 //                observeConnectionStateChanges(it)
@@ -96,6 +104,7 @@ class ReactiveStatefulConnection @Inject constructor(
                     .setScanMode(ScanSettings.SCAN_MODE_BALANCED)
                     .build()
             )
+            .doOnSubscribe { emitConnectionState(Event.loading()) }
             .asFlow()
 //            .onStart { emitLoading() }
             .filter { it.bleDevice.name.equals(lockInfo.deviceName, ignoreCase = true) }
@@ -127,6 +136,7 @@ class ReactiveStatefulConnection @Inject constructor(
 
         connectionJob = rxBleDevice
             .establishConnection(false)
+            .doOnSubscribe { emitConnectionState(Event.loading()) } //too late
             .asFlow()
             .flatMapConcat {
                 _rxBleConnection = it
@@ -143,6 +153,7 @@ class ReactiveStatefulConnection @Inject constructor(
             }
             .flatMapConcat { permission ->
 //                Timber.d("permission:$permission")
+                connectionTimerJob?.cancel() //avoid to be disconnected bluetooth.
                 emitConnectionState((Event.success(Pair(true, permission))))
 //                delay(1000)
                 bleHandShakeUseCase.getLockConnection(macAddress).toObservable().asFlow()
@@ -171,7 +182,7 @@ class ReactiveStatefulConnection @Inject constructor(
 
     private fun emitConnectionState(event: Event<Pair<Boolean, String>>) {
         runBlocking {
-            delay(5000)
+//            delay(5000)
             _connectionState.emit(event)
             lastConnectionState.value = event
         }
@@ -313,6 +324,7 @@ class ReactiveStatefulConnection @Inject constructor(
 
     override suspend fun scanWifi() {
         val command = wifiListCommand.create(keyTwo, Unit)
+        if ( _rxBleConnection == null) return
         _rxBleConnection!!
             .writeCharacteristic(NOTIFICATION_CHARACTERISTIC, command).toObservable().asFlow()
             .flowOn(Dispatchers.IO)

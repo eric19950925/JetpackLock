@@ -39,12 +39,8 @@ fun ScanLockQRCodeScreen(
         viewModel.uiEvent.collect {
             when (it) {
 //                is ScanLockQRCodeUiEvent.Complete -> navController.navigate("${AddLockRoute.Installation.route}/${it.macAddress}")
-                    // TODO 傳 mac 到下一頁 做 RxBle 連線
                 is ScanLockQRCodeUiEvent.Complete -> navController.navigate("${AddLockRoute.Pairing.route}/${it.macAddress}")
-                is ScanLockQRCodeUiEvent.GotType -> {
-//                    val log = if(it.isWifiLock)"wifilock" else "blelock"
-//                    Timber.d(log)
-                }
+
             }
         }
     }
