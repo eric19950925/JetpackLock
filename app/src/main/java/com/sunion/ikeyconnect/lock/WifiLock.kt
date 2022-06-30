@@ -27,7 +27,7 @@ class WifiLock @Inject constructor(
     private val statefulConnection: ReactiveStatefulConnection,
     private val iotService: SunionIotService,
     private val getIdToken: GetIdTokenUseCase,
-    ) : Lock, SunionWifiService {
+    ) : Lock {
 
     private var connectionDisposable: Disposable? = null
 
@@ -130,22 +130,16 @@ class WifiLock @Inject constructor(
             .launchIn(lockScope)
     }
 
-    override fun collectWifiList(): Flow<WifiListResult> = statefulConnection.collectWifiList()
+    fun collectWifiList(): Flow<WifiListResult> = statefulConnection.collectWifiList(lockInfo)
 
-    override suspend fun scanWifi() = statefulConnection.scanWifi()
+    suspend fun scanWifi() = statefulConnection.scanWifi(lockInfo)
 
-    override fun collectConnectToWifiState(): Flow<WifiConnectState> = statefulConnection.collectConnectToWifiState()
+    fun collectConnectToWifiState(): Flow<WifiConnectState> = statefulConnection.collectConnectToWifiState(lockInfo)
 
-    override suspend fun connectLockToWifi(ssid: String, password: String): Boolean = statefulConnection.connectLockToWifi(ssid, password)
+    suspend fun connectLockToWifi(ssid: String, password: String): Boolean = statefulConnection.connectLockToWifi(ssid, password, lockInfo)
 
     fun getAndSaveThingName(clientToken: String) =
-        flow {
-            val idToken = runCatching {
-                getIdToken().single()
-            }.getOrNull() ?: return@flow
-
-            emit(iotService.getDeviceList(idToken, clientToken))
-        }
+        flow { emit(iotService.getDeviceList(clientToken)) }
             .map {
                 it.find { d -> d.attributes.bluetooth.mACAddress == lockInfo.macAddress }
                     ?.run {
@@ -168,13 +162,7 @@ class WifiLock @Inject constructor(
         clientToken: String,
         model: String,
     ): Boolean {
-
-        val idToken = runCatching {
-            getIdToken().single()
-        }.getOrNull() ?: return false
-
         return iotService.deviceProvisionCreate(
-            idToken,
             serialNumber,
             deviceName,
             timeZone,
@@ -194,7 +182,7 @@ class WifiLock @Inject constructor(
             .get(lockInfo.macAddress)
             .toObservable()
             .asFlow()
-            .flatMapConcat { flow { emit(iotService.lock(idToken, it.thingName!!, clientToken!!)) } }
+            .flatMapConcat { flow { emit(iotService.lock(it.thingName!!, clientToken!!)) } }
             .map {
                 LockSetting(
                     config = LockConfig(

@@ -98,27 +98,18 @@ class ReactiveStatefulConnection @Inject constructor(
 //            }
 
         scanJob?.cancel()
-        scanJob = rxBleClient
-            .scanBleDevices(
-                ScanSettings.Builder()
-                    .setScanMode(ScanSettings.SCAN_MODE_BALANCED)
-                    .build()
-            )
-            .doOnSubscribe { emitConnectionState(Event.loading()) }
-            .asFlow()
-//            .onStart { emitLoading() }
-            .filter { it.bleDevice.name.equals(lockInfo.deviceName, ignoreCase = true) }
-            .map { it.bleDevice }
-            .onEach {
-                _bleDevice = it
-                observeConnectionStateChanges(it)
-                connectToDevice(it, lockInfo.macAddress)
-                scanJob?.cancel()
-            }
-            .catch {
-                Timber.e(it)
-            }
-            .launchIn(lockScope)
+        scanJob =
+            flow { emit( rxBleClient.getBleDevice(lockInfo.macAddress))}
+                .onEach{
+                    _bleDevice = it
+                    observeConnectionStateChanges(it)
+                    connectToDevice(it, lockInfo.macAddress)
+                    scanJob?.cancel()
+                }
+                .catch {
+                    Timber.e(it)
+                }
+                .launchIn(lockScope)
     }
 
     fun connectToDevice(rxBleDevice: RxBleDevice, macAddress: String) {
@@ -308,22 +299,22 @@ class ReactiveStatefulConnection @Inject constructor(
     }
 
 
-    override fun collectWifiList(): Flow<WifiListResult> = run {
+    override fun collectWifiList(lockInfo: LockInfo): Flow<WifiListResult> = run {
         _rxBleConnection!!
             .setupNotification(NOTIFICATION_CHARACTERISTIC, NotificationSetupMode.DEFAULT)
             .flatMap { it }
             .asFlow()
-            .filter { wifiListCommand.match(keyTwo, it) }
+            .filter { wifiListCommand.match(lockInfo.keyTwo, it) }
             .map { notification ->
                 Timber.d(notification.toHex())
-                val result = wifiListCommand.parseResult(keyTwo, notification)
+                val result = wifiListCommand.parseResult(lockInfo.keyTwo, notification)
                 Timber.d("cmdResponse:$result")
                 result
             }
     }
 
-    override suspend fun scanWifi() {
-        val command = wifiListCommand.create(keyTwo, Unit)
+    override suspend fun scanWifi(lockInfo: LockInfo) {
+        val command = wifiListCommand.create(lockInfo.keyTwo, Unit)
         if ( _rxBleConnection == null) return
         _rxBleConnection!!
             .writeCharacteristic(NOTIFICATION_CHARACTERISTIC, command).toObservable().asFlow()
@@ -333,19 +324,19 @@ class ReactiveStatefulConnection @Inject constructor(
             .launchIn(lockScope)
     }
 
-    override fun collectConnectToWifiState(): Flow<WifiConnectState> =
+    override fun collectConnectToWifiState(lockInfo: LockInfo): Flow<WifiConnectState> =
         _rxBleConnection!!
             .setupNotification(NOTIFICATION_CHARACTERISTIC)
             .flatMap { it }
             .asFlow()
-            .filter { connectWifiCommand.match(keyTwo, it) }
-            .map { notification -> connectWifiCommand.parseResult(keyTwo, notification) }
+            .filter { connectWifiCommand.match(lockInfo.keyTwo, it) }
+            .map { notification -> connectWifiCommand.parseResult(lockInfo.keyTwo, notification) }
 
-    override suspend fun connectLockToWifi(ssid: String, password: String): Boolean {
+    override suspend fun connectLockToWifi(ssid: String, password: String, lockInfo: LockInfo): Boolean {
         val connection = _rxBleConnection ?: return false
-        val command_set_ssid = wifiListCommand.setSSID(keyTwo, ssid)
-        val command_set_password = wifiListCommand.setPassword(keyTwo, password)
-        val command_connect = wifiListCommand.connect(keyTwo)
+        val command_set_ssid = wifiListCommand.setSSID(lockInfo.keyTwo, ssid)
+        val command_set_password = wifiListCommand.setPassword(lockInfo.keyTwo, password)
+        val command_connect = wifiListCommand.connect(lockInfo.keyTwo)
         connection
             .writeCharacteristic(
                 NOTIFICATION_CHARACTERISTIC, command_set_ssid

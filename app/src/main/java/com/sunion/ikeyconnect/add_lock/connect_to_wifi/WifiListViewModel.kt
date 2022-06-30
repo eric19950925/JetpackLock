@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.sunion.ikeyconnect.LockProvider
 import com.sunion.ikeyconnect.domain.Interface.WifiListResult
 import com.sunion.ikeyconnect.domain.blelock.BluetoothConnectState
-import com.sunion.ikeyconnect.domain.blelock.ReactiveStatefulConnection
 import com.sunion.ikeyconnect.domain.usecase.account.GetClientTokenUseCase
 import com.sunion.ikeyconnect.lock.WifiLock
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -44,9 +43,8 @@ class WifiListViewModel @Inject constructor(
                 lock = it
                 it?.let {
                     collectBleConnectionState()
-                    collectWifiList()
                     if (it.isConnected()) {
-//                        May need to wait 1 second to reduce failures
+                        collectWifiList()
                         scanWIfi()
                     } else {
                         isLockDisconnected = true
@@ -66,7 +64,10 @@ class WifiListViewModel @Inject constructor(
             .flowOn(Dispatchers.IO)
             .onEach { wifi ->
                 when (wifi) {
-                    WifiListResult.End -> _uiState.update { it.copy(isScanning = false) }
+                    WifiListResult.End -> {
+                        _uiState.update { it.copy(isScanning = false) }
+                        collectWifiListJob?.cancel()
+                    }
                     is WifiListResult.Wifi -> {
                         val wifiInfo = WifiInfo(wifi.ssid, wifi.needPassword, 0)
                         _uiState.update {

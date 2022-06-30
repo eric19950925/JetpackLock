@@ -1,6 +1,7 @@
 package com.sunion.ikeyconnect.domain.Interface
 
 import com.sunion.ikeyconnect.domain.command.WifiConnectState
+import com.sunion.ikeyconnect.domain.model.LockInfo
 import kotlinx.coroutines.flow.Flow
 
 interface SunionWifiService {
@@ -10,13 +11,13 @@ interface SunionWifiService {
 
     }
 
-    fun collectWifiList(): Flow<WifiListResult>
+    fun collectWifiList(lockInfo: LockInfo): Flow<WifiListResult>
 
-    suspend fun scanWifi()
+    suspend fun scanWifi(lockInfo: LockInfo)
 
-    fun collectConnectToWifiState(): Flow<WifiConnectState>
+    fun collectConnectToWifiState(lockInfo: LockInfo): Flow<WifiConnectState>
 
-    suspend fun connectLockToWifi(ssid: String, password: String): Boolean
+    suspend fun connectLockToWifi(ssid: String, password: String, lockInfo: LockInfo): Boolean
 }
 
 

@@ -197,7 +197,7 @@ class BleHandShakeUseCase @Inject constructor(
                                                     model = lockConnection.model
                                                 )
                                             )
-                                            Timber.d("update key two successful")
+                                            Timber.d("update key two successful: ${pair.first.toHex()}")
                                         }
                                         .subscribeOn(Schedulers.single())
                                         .subscribe()

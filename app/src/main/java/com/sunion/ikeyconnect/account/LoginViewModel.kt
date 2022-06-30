@@ -140,7 +140,7 @@ class LoginViewModel @Inject constructor(
                 logins.put(USER_POOL_ADDRESS, idToken)
                 cachingCredentialsProvider.logins = logins
             }
-            .map { mqttStatefulConnection.connectMqtt(cachingCredentialsProvider) }
+            .map { mqttStatefulConnection.setCredentialsProvider(cachingCredentialsProvider) }
             .flowOn(Dispatchers.IO)
             .onEach {
                 Timber.d(it.toString()) }

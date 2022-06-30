@@ -5,9 +5,9 @@ import com.sunion.ikeyconnect.domain.model.sunion_service.DeviceProvisionCreateR
 import com.sunion.ikeyconnect.domain.model.sunion_service.DeviceUpdateResponse
 
 interface RemoteDeviceRepository {
-    suspend fun create(idToken: String, request: DeviceProvisionCreateRequest): String
+    suspend fun create(request: DeviceProvisionCreateRequest): String
 
-    suspend fun list(idToken: String, clientToken: String): DeviceListResponse
+    suspend fun list(clientToken: String): DeviceListResponse
 
     suspend fun updateDeviceName(
         thingName: String,
@@ -29,9 +29,9 @@ interface RemoteDeviceRepository {
 
     suspend fun delete(thingName: String, clientToken: String): String
 
-    suspend fun getBoltOrientation(thingName: String, clientToken: String)
+    suspend fun checkOrientation(thingName: String, clientToken: String)
 
-    suspend fun lock(idToken: String, thingName: String, clientToken: String)
+    suspend fun lock(thingName: String, clientToken: String)
 
-    suspend fun unlock(idToken: String, thingName: String, clientToken: String)
+    suspend fun unlock(thingName: String, clientToken: String)
 }

@@ -386,4 +386,6 @@ QR-Code on the lock]]></string>
     <string name="connect_to_wifi_password"><![CDATA[Password]]></string>
     <string name="connect_to_wifi_connect"><![CDATA[Connect]]></string>
     <string name="updated_hours_ago"><![CDATA[Updated %s hours ago]]></string>
+    <string name="setting_secure_mode"><![CDATA[Secure Mode]]></string>
+    <string name="setting_wifi_setting"><![CDATA[Wi-Fi setting]]></string>
 </resources>

@@ -69,7 +69,7 @@ fun Locks(
                 .fillMaxWidth()
         ) { page ->
             val lock = locks[page]
-            val isBleDisconnected = lock.LockState.Connected
+            val isBleDisconnected = !lock.LockState.Connected
 
             Lock(
                 lock = lock,
@@ -83,7 +83,7 @@ fun Locks(
                 onUserCodeClick = onUserCodeClick,
                 onSettingClick = onSettingClick,
                 onSaveNameClick = onSaveNameClick,
-                macAddress = "lock.macAddress",
+                macAddress = lock.Attributes.Bluetooth.MACAddress,
                 isWifi = true,
                 name = lock.Attributes.DeviceName,
                 permission = "lock.permission"
@@ -323,17 +323,18 @@ private fun LockStatusImage(
     Image(
         painter = painterResource(
             id =
-//            when {
+            when {
 //                lock.isProcessing -> R.drawable.vector_lock_state_loading
-//                lock is BoltOrientationFailDevice -> R.drawable.vector_lock_state_bolt_required
-//                lock is DisconnectedDevice -> R.drawable.vector_lock_state_not_connected
-//                else ->
+                !lock.LockState.Connected -> R.drawable.vector_lock_state_not_connected
+                lock.LockState.Direction == "unknown" -> R.drawable.vector_lock_state_bolt_required
+                else ->
                     when (lock.LockState.Deadbolt.getLockState()) {
                     LockStatus.LOCKED -> R.drawable.vector_lock_state_locked
                     LockStatus.UNLOCKED -> R.drawable.vector_lock_state_unlocked
-                    else -> R.drawable.vector_lock_state_loading
+//                    else -> R.drawable.vector_lock_state_loading
+                    else -> R.drawable.vector_lock_state_not_connected
                 }
-//            }
+            }
         ),
         contentDescription = null,
         modifier = modifier
@@ -367,20 +368,21 @@ private fun ActionRow(
         horizontalArrangement = Arrangement.SpaceAround,
         modifier = Modifier.fillMaxWidth()
     ) {
-        ActionButton(
-            onClick = { if (!isDisconnected) onAutoUnlockClock(macAddress) },
-            textResId = R.string.toolbar_title_auto_un_lock,
-            iconResId = R.drawable.ic_lock_open_white,
-            modifier = Modifier.alpha(if (isDisconnected) 0f else 1f)
-        )
-        if (true/*permission == DeviceToken.PERMISSION_ALL*/)
+        if (!isDisconnected)
+            ActionButton(
+                onClick = { if (!isDisconnected) onAutoUnlockClock(macAddress) },
+                textResId = R.string.toolbar_title_auto_un_lock,
+                iconResId = R.drawable.ic_lock_open_white,
+                modifier = Modifier.alpha(if (isDisconnected) 0f else 1f)
+            )
+        if (permission == DeviceToken.PERMISSION_ALL && !isDisconnected)
             ActionButton(
                 onClick = { if (!isDisconnected) onManageClick(macAddress) },
                 textResId = R.string.toolbar_users,
                 iconResId = R.drawable.ic_managers,
                 modifier = Modifier.alpha(if (isDisconnected) 0f else 1f)
             )
-        if (true/*permission == DeviceToken.PERMISSION_ALL*/)
+        if (permission == DeviceToken.PERMISSION_ALL && !isDisconnected)
             ActionButton(
                 onClick = { if (!isDisconnected) onUserCodeClick(macAddress) },
                 textResId = R.string.toolbar_user_code,

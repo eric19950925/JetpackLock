@@ -2,7 +2,6 @@ package com.sunion.ikeyconnect
 
 import com.sunion.ikeyconnect.domain.Interface.RemoteDeviceRepository
 import com.sunion.ikeyconnect.domain.Interface.SunionIotService
-import com.sunion.ikeyconnect.domain.model.LockOrientation
 import com.sunion.ikeyconnect.domain.model.sunion_service.DeviceListResponse
 import com.sunion.ikeyconnect.domain.model.sunion_service.DeviceProvisionCreateRequest
 import timber.log.Timber
@@ -15,7 +14,6 @@ class SunionIotServiceImpl @Inject constructor(
     ) : SunionIotService {
 
     override suspend fun deviceProvisionCreate(
-        idToken: String,
         serialNumber: String,
         deviceName: String,
         timeZone: String,
@@ -25,7 +23,6 @@ class SunionIotServiceImpl @Inject constructor(
     ): Boolean {
         return runCatching {
             remoteDeviceRepository.create(
-                idToken,
                 DeviceProvisionCreateRequest(
                     applicationID = "Sunion_20220617",
                     model = model,
@@ -45,8 +42,8 @@ class SunionIotServiceImpl @Inject constructor(
         }
     }
 
-    override suspend fun getDeviceList(idToken: String, clientToken: String): List<DeviceListResponse.Device> =
-        remoteDeviceRepository.list(idToken, clientToken).devices
+    override suspend fun getDeviceList(clientToken: String): List<DeviceListResponse.Device> =
+        remoteDeviceRepository.list(clientToken).devices
 
     override suspend fun updateDeviceName(
         thingName: String,
@@ -85,19 +82,15 @@ class SunionIotServiceImpl @Inject constructor(
         remoteDeviceRepository.delete(thingName, clientToken)
     }
 
-    override suspend fun getBoltOrientation(
-        thingName: String,
-        clientToken: String,
-    ): LockOrientation {
-        remoteDeviceRepository.getBoltOrientation(thingName, clientToken)
-        return LockOrientation.Left//TODO
+    override suspend fun checkOrientation(thingName: String, clientToken: String) {
+        remoteDeviceRepository.checkOrientation(thingName, clientToken)
     }
 
-    override suspend fun lock(idToken: String, thingName: String, clientToken: String) {
-        remoteDeviceRepository.lock(idToken, thingName, clientToken)
+    override suspend fun lock(thingName: String, clientToken: String) {
+        remoteDeviceRepository.lock(thingName, clientToken)
     }
 
-    override suspend fun unlock(idToken: String, thingName: String, clientToken: String) {
-        remoteDeviceRepository.unlock(idToken, thingName, clientToken)
+    override suspend fun unlock(thingName: String, clientToken: String) {
+        remoteDeviceRepository.unlock(thingName, clientToken)
     }
 }

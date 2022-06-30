@@ -11,11 +11,11 @@ import javax.inject.Singleton
 class RemoteDeviceRepositoryImpl @Inject constructor(
     private val deviceAPI: DeviceAPI
     ) : RemoteDeviceRepository {
-    override suspend fun create(idToken: String, request: DeviceProvisionCreateRequest): String =
-        deviceAPI.deviceProvisionCreate(idToken = "Bearer $idToken", request = request).clientToken
+    override suspend fun create(request: DeviceProvisionCreateRequest): String =
+        deviceAPI.deviceProvisionCreate(request = request).clientToken
 
-    override suspend fun list(idToken: String, clientToken: String): DeviceListResponse =
-        deviceAPI.deviceList(idToken = "Bearer $idToken", clientToken = clientToken)
+    override suspend fun list(clientToken: String): DeviceListResponse =
+        deviceAPI.deviceList(clientToken = clientToken)
 
     override suspend fun updateDeviceName(
         thingName: String,
@@ -83,7 +83,7 @@ class RemoteDeviceRepositoryImpl @Inject constructor(
             )
         ).clientToken
 
-    override suspend fun getBoltOrientation(thingName: String, clientToken: String) {
+    override suspend fun checkOrientation(thingName: String, clientToken: String) {
         deviceAPI.deviceShadowUpdateRunCheck(request = DeviceShadowUpdateRunCheckRequest(
             deviceIdentity = thingName,
             desired = DeviceShadowUpdateRunCheckRequest.Desired(
@@ -94,9 +94,8 @@ class RemoteDeviceRepositoryImpl @Inject constructor(
         ))
     }
 
-    override suspend fun lock(idToken: String, thingName: String, clientToken: String) {
+    override suspend fun lock(thingName: String, clientToken: String) {
         deviceAPI.deviceShadowUpdateLock(
-            idToken = "Bearer $idToken",
             request = DeviceShadowUpdateLockRequest(
             deviceIdentity = thingName,
             desired = DeviceShadowUpdateLockRequest.Desired(
@@ -107,9 +106,8 @@ class RemoteDeviceRepositoryImpl @Inject constructor(
         )
     }
 
-    override suspend fun unlock(idToken: String, thingName: String, clientToken: String) {
+    override suspend fun unlock(thingName: String, clientToken: String) {
         deviceAPI.deviceShadowUpdateLock(
-            idToken = "Bearer $idToken",
             request = DeviceShadowUpdateLockRequest(
             deviceIdentity = thingName,
             desired = DeviceShadowUpdateLockRequest.Desired(

@@ -4,7 +4,7 @@ data class LockInfo(
     val macAddress: String,
     val oneTimeToken: String,
     val keyOne: String,
-    val keyTwo: String,
+    var keyTwo: String,
     val isOwnerToken: Boolean,
     val isFrom: String,
     val lockName: String,

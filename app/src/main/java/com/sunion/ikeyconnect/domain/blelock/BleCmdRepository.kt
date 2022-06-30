@@ -14,9 +14,10 @@ import java.util.concurrent.atomic.AtomicInteger
 import javax.crypto.Cipher
 import javax.crypto.spec.SecretKeySpec
 import javax.inject.Inject
+import javax.inject.Singleton
 import kotlin.random.Random
 
-
+@Singleton
 class BleCmdRepository @Inject constructor(){
 
     private val commandSerial = AtomicInteger()
@@ -172,6 +173,7 @@ class BleCmdRepository @Inject constructor(){
         val sendByte = ByteArray(2)
         sendByte[0] = 0xC1.toByte() // function
         sendByte[1] = 0x08 // len=8
+//        Timber.d("c1: ${(serial + sendByte).toHex()}")
         return encrypt(aesKeyTwo, pad(serial + sendByte + token)) ?: throw IllegalArgumentException(
             "bytes cannot be null"
         )

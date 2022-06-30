@@ -12,6 +12,7 @@ import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.sunion.ikeyconnect.*
 import com.sunion.ikeyconnect.api.AccountAPI
+import com.sunion.ikeyconnect.api.AuthInterceptor
 import com.sunion.ikeyconnect.api.DeviceAPI
 import com.sunion.ikeyconnect.domain.Interface.AuthRepository
 import com.sunion.ikeyconnect.domain.Interface.RemoteDeviceRepository
@@ -52,13 +53,14 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient {
+    fun provideOkHttpClient(awsMobileClient: AWSMobileClient): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.HEADERS
             level = HttpLoggingInterceptor.Level.BODY
         }
         return OkHttpClient.Builder()
             .addInterceptor(loggingInterceptor)
+            .addInterceptor(AuthInterceptor(awsMobileClient))
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(10, TimeUnit.SECONDS)
             .build()

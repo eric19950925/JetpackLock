@@ -7,20 +7,16 @@ interface DeviceAPI {
     /**
      * 授權配對
      */
-    @Headers("Content-Type: application/json")
     @POST("device-provision/create")
     suspend fun deviceProvisionCreate(
-        @Header("Authorization") idToken: String,
         @Body request: DeviceProvisionCreateRequest
     ): DeviceProvisionCreateResponse
 
     /**
      * 裝置列表
      */
-    @Headers("Content-Type: application/json")
     @GET("device-list")
     suspend fun deviceList(
-        @Header("Authorization") idToken: String,
         @Query("clienttoken") clientToken: String
     ): DeviceListResponse
 
@@ -45,10 +41,8 @@ interface DeviceAPI {
     /**
      * 裝置控制 - 開/關
      */
-    @Headers("Content-Type: application/json")
     @POST("device-shadow/update")
     suspend fun deviceShadowUpdateLock(
-        @Header("Authorization") idToken: String,
         @Body request: DeviceShadowUpdateLockRequest
     ): DeviceShadowUpdateLockResponse
 
