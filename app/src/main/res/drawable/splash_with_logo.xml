@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <color android:color="@color/white" />
+    </item>
+
+    <item
+        android:width="@dimen/space_108"
+        android:height="@dimen/space_108"
+        android:drawable="@drawable/logo_mark"
+        android:gravity="center" />
+
+    <item
+        android:width="@dimen/space_108"
+        android:height="@dimen/space_108"
+        android:drawable="@drawable/ic_app_name"
+        android:gravity="center" />
+</layer-list>

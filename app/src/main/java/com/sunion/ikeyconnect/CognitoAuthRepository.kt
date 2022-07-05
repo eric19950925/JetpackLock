@@ -1,5 +1,6 @@
 package com.sunion.ikeyconnect
 
+import android.os.Build
 import android.util.Log
 import com.amazonaws.AmazonServiceException
 import com.amazonaws.mobile.client.AWSMobileClient
@@ -10,13 +11,14 @@ import com.amazonaws.services.cognitoidentityprovider.model.UserNotFoundExceptio
 import com.amazonaws.services.cognitoidentityprovider.model.UsernameExistsException
 import com.sunion.ikeyconnect.domain.exception.AuthException
 import com.sunion.ikeyconnect.domain.exception.IKeyException
-import com.sunion.ikeyconnect.domain.repository.AuthRepository
+import com.sunion.ikeyconnect.domain.Interface.AuthRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.*
+import java.util.*
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,6 +27,8 @@ class CognitoAuthRepository @Inject constructor(
     private val mobileClient: AWSMobileClient,
     private val dispatcher: CoroutineDispatcher
 ): AuthRepository {
+
+    private val UUID_clientToken = Build.MODEL.replace(" ","_")+UUID.randomUUID().toString()
 
     companion object {
         private const val USER_ATTRIBUTE_EMAIL = "email"
@@ -75,9 +79,16 @@ class CognitoAuthRepository @Inject constructor(
     }
 
     override fun getIdToken(): Flow<String> = flow {
-        Log.d("TAG",mobileClient.tokens.idToken.tokenString)
         emit(mobileClient.tokens.idToken.tokenString)
     }
+
+    override fun getUuid(): String {
+        return UUID_clientToken
+    }
+
+    override fun getIdentityId(): Flow<String>  = flow {
+        emit(mobileClient.identityId)
+    }.flowOn(dispatcher)
 
     override fun getStateDetails(): Flow<String> = flow {
         emit(mobileClient.currentUserState().userState.name)
@@ -179,11 +190,9 @@ class CognitoAuthRepository @Inject constructor(
         }
     }.flowOn(dispatcher)
 
-    override fun getAccessToken(): Flow<String> = flow {
-        val value = runCatching { mobileClient.tokens.accessToken.tokenString }
+    override suspend fun getAccessToken(): String =
+        runCatching { mobileClient.tokens.accessToken.tokenString }
             .getOrElse { throw mappingException(it) }
-        emit(value)
-    }.flowOn(dispatcher)
 
     override fun getUsername(): String? = runCatching { mobileClient.username }.getOrNull()
 

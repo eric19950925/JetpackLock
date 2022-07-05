@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <resources>
     <string name="app_name">iKey Connect</string>
+    <string name="model_kd0">Grade 2 Electronic Touchpad Deadbolt</string>
+    <string name="model_kdw00">WiFi Electronic Touchpad Deadbolt</string>
+    <string name="model_kl0">KL0</string>
+    <string name="model_td0">TD0</string>
+    <string name="model_tl0">TL0</string>
     <string name="drawer_content_description"><![CDATA[Navigation drawer]]></string>
     <string name="close_drawer_content_description"><![CDATA[Close navigation drawer]]></string>
     <string name="open_drawer_content_description"><![CDATA[Open navigation drawer]]></string>
@@ -369,4 +374,18 @@ QR-Code on the lock]]></string>
     <string name="member_please_enter_password"><![CDATA[Please enter password]]></string>
     <string name="member_failed_to_delete_account"><![CDATA[Failed to delete account]]></string>
     <string name="member_failed_to_log_out"><![CDATA[Failure to log out]]></string>
+    <string name="connect_to_wifi_title"><![CDATA[Connect to Wi-Fi]]></string>
+    <string name="connect_to_wifi_select_wifi_network"><![CDATA[Select your 2.4GHz Wi-Fi Network]]></string>
+    <string name="connect_to_wifi_available_networks"><![CDATA[AVAILABLE NETWORKS]]></string>
+    <string name="connect_to_wifi_skip"><![CDATA[Skip]]></string>
+    <string name="connect_to_wifi_enter_your_password"><![CDATA[Enter Your Password]]></string>
+    <string name="connect_to_wifi_please_enter_your_wifi_password"><![CDATA[Please enter your wi-fi password]]></string>
+    <string name="connect_to_wifi_loading"><![CDATA[Loading…]]></string>
+    <string name="connect_to_wifi_disconnection"><![CDATA[Disconnection]]></string>
+    <string name="connect_to_wifi_lose_bluetooth_connection"><![CDATA[You have lost Bluetooth connection. Please reset the lock.]]></string>
+    <string name="connect_to_wifi_password"><![CDATA[Password]]></string>
+    <string name="connect_to_wifi_connect"><![CDATA[Connect]]></string>
+    <string name="updated_hours_ago"><![CDATA[Updated %s hours ago]]></string>
+    <string name="setting_secure_mode"><![CDATA[Secure Mode]]></string>
+    <string name="setting_wifi_setting"><![CDATA[Wi-Fi setting]]></string>
 </resources>
