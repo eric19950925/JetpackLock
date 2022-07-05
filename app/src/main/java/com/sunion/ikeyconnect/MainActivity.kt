@@ -10,6 +10,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.amazonaws.mobileconnectors.iot.AWSIotMqttManager
 import com.sunion.ikeyconnect.account.AccountActivity
 import com.sunion.ikeyconnect.account.AccountNavigation
 import com.sunion.ikeyconnect.account.LoginViewModel
@@ -18,9 +19,22 @@ import com.sunion.ikeyconnect.ui.theme.FuhsingSmartLockV2AndroidTheme
 import com.sunion.ikeyconnect.welcome.WelcomeScreen
 import dagger.hilt.android.AndroidEntryPoint
 import com.sunion.ikeyconnect.R
+import com.sunion.ikeyconnect.domain.blelock.StatefulConnection
+import com.sunion.ikeyconnect.home.HomeViewModel
+import timber.log.Timber
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
+    @Inject
+    lateinit var statefulConnection: StatefulConnection
+
+    @Inject
+    lateinit var mqttManager: AWSIotMqttManager
+
+    @Inject
+    lateinit var mqttStatefulConnection: MqttStatefulConnection
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -34,10 +48,43 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+
+    override fun onStop() {
+        super.onStop()
+        Timber.d("onStop")
+        try {
+            mqttStatefulConnection.unsubscribeAllTopic()
+            mqttManager.disconnect()
+            Timber.d("mqttDisconnect success.")
+        }catch (e: Exception){
+            Timber.e( "mqttDisconnect error: $e")
+        }
+    }
+
+    override fun onRestart() {
+        super.onRestart()
+        Timber.d("onRestart")
+        try {
+            mqttStatefulConnection.connectMqtt()
+            Timber.d("mqttConnecting...")
+        }catch (e: Exception){
+            Timber.e( "mqttConnect error: $e")
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        try {
+            mqttStatefulConnection.unsubscribeAllTopic()
+            mqttManager.disconnect()
+            Timber.d("mqttDisconnect success.")
+        }catch (e: Exception){
+            Timber.e( "mqttDisconnect error: $e")
+        }
+    }
+
     companion object {
         const val CONTENT_TYPE_JSON = "application/json; charset=utf-8"
-        const val AES_KEY = ""
-        //test fast forward merge
     }
     private fun goLogin() {
         startActivity(Intent(this, AccountActivity::class.java))
@@ -51,35 +98,38 @@ class MainActivity : AppCompatActivity() {
 
 @Composable
 fun NavigationComponent(navController: NavHostController, onLogoutClick: () -> Unit, onLoginSuccess: () -> Unit) {
-    val vm = viewModel<LoginViewModel>()
+    val loginViewModel = viewModel<LoginViewModel>()
+    val homeViewModel = viewModel<HomeViewModel>()
     NavHost(
         navController = navController,
         startDestination = "welcome"
     ) {
         composable("welcome") {
             WelcomeScreen(
-                vm,
+                loginViewModel,
                 toHome = {
                     navController.navigate("home")
+                    loginViewModel.setCredentialsProvider()
                 },
                 toLogin = {
                     navController.navigate("login")
                 },
                 logOut = {
-                    vm.logOut()
+                    loginViewModel.logOut()
                 }
             )
         }
         composable("login") {
             AccountNavigation(
                 onLoginSuccess= {
-                    vm.setAttachPolicy()
+                    loginViewModel.setAttachPolicy()
                     onLoginSuccess.invoke()
                                 }
             )
         }
         composable("home") {
             HomeNavHost(
+                homeViewModel,
                 onLogoutClick = onLogoutClick
             )
         }

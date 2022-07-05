@@ -7,7 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sunion.ikeyconnect.R
-import com.sunion.ikeyconnect.domain.repository.AuthRepository
+import com.sunion.ikeyconnect.domain.Interface.AuthRepository
 import com.sunion.ikeyconnect.domain.usecase.account.DeleteAccountUseCase
 import com.sunion.ikeyconnect.domain.usecase.account.GetIdTokenUseCase
 import com.sunion.ikeyconnect.domain.usecase.account.SignOutUseCase

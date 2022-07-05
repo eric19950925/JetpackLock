@@ -12,12 +12,15 @@ android {
     defaultConfig {
         applicationId "com.sunion.ikeyconnect"
         minSdk 25
-        targetSdk 32
+        targetSdk 31
         versionCode 1
         versionName "0.1.1"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField "String", 'API_GATEWAY_ENDPOINT', "\"https://api.ikey-lock.com/v1/\""
+        buildConfigField "String", 'AWS_IOT_CORE_END_POINT', "\"a3jcdl3hkiliu4-ats.iot.us-east-1.amazonaws.com\""
+        buildConfigField "String", 'COGNITO_IDENTITY_POOL_ID', "\"us-east-1:8266c1e3-feeb-4795-9e3b-9e6facb2f9ff\""
+        buildConfigField "String", 'COGNITO_REGIONS', "\"us-east-1\""
     }
 
     buildTypes {
@@ -42,6 +45,10 @@ android {
 }
 
 dependencies {
+    def accompanist_version = "0.24.2-alpha"
+    def room_version = '2.4.2'
+    def timber_version = '5.0.1'
+
     implementation 'androidx.core:core-ktx:1.7.0'
     implementation 'androidx.appcompat:appcompat:1.4.1'
     implementation 'com.google.android.material:material:1.5.0'
@@ -61,7 +68,8 @@ dependencies {
     implementation "androidx.compose.compiler:compiler:$composeVersion"
 
     //aws
-    implementation "com.amazonaws:aws-android-sdk-mobile-client:2.42.0"
+    implementation "com.amazonaws:aws-android-sdk-mobile-client:2.49.0"
+    implementation 'com.amazonaws:aws-android-sdk-iot:2.48.1'
 
     implementation 'com.google.dagger:hilt-android:2.41'
     kapt 'com.google.dagger:hilt-android-compiler:2.38.1'
@@ -77,13 +85,44 @@ dependencies {
     implementation "com.squareup.okhttp3:logging-interceptor:4.9.1"
 
     // RxJava
-    implementation "com.squareup.retrofit2:adapter-rxjava2:2.3.0"
+    implementation "com.squareup.retrofit2:adapter-rxjava2:2.9.0"
+    implementation 'com.jakewharton.rx2:replaying-share-kotlin:2.2.0'
+    implementation 'io.reactivex.rxjava2:rxandroid:2.1.1'
 
-    implementation "com.google.accompanist:accompanist-appcompat-theme:0.23.1"
+    // accompanist
+    implementation "com.google.accompanist:accompanist-appcompat-theme:$accompanist_version"
+    implementation "com.google.accompanist:accompanist-permissions:$accompanist_version"
+    implementation "com.google.accompanist:accompanist-pager:$accompanist_version"
+    implementation "com.google.accompanist:accompanist-pager-indicators:$accompanist_version"
 
     // PASSWORD
     implementation "org.passay:passay:1.6.1"
 
     implementation "com.google.firebase:firebase-bom:30.0.1"
     implementation 'com.jakewharton:process-phoenix:2.1.2'
+    // Qrcode
+    implementation 'com.journeyapps:zxing-android-embedded:4.3.0'
+
+    // db
+    implementation "androidx.room:room-runtime:$room_version"
+    kapt("androidx.room:room-compiler:$room_version")
+    implementation "androidx.room:room-ktx:$room_version"
+    implementation "androidx.room:room-rxjava2:$room_version"
+
+    // log
+    implementation "com.jakewharton.timber:timber:$timber_version"
+
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-rx2:1.6.1"
+
+    implementation "com.polidea.rxandroidble2:rxandroidble:1.13.1"
+
+    // Google map https://github.com/googlemaps/android-maps-ktx
+    implementation  "com.google.maps.android:maps-compose:2.2.1"
+    implementation 'com.google.android.gms:play-services-maps:18.0.2'
+    implementation 'com.google.android.gms:play-services-location:20.0.0'
+
+    // Image
+    implementation("io.coil-kt:coil:2.1.0")
+    implementation("io.coil-kt:coil-compose:2.1.0")
+    implementation("io.coil-kt:coil-gif:2.0.0-rc03")
 }

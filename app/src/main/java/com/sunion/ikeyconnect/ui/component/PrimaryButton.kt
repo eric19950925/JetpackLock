@@ -3,10 +3,12 @@ package com.sunion.ikeyconnect.ui.component
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Button
+import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -15,6 +17,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
 import com.sunion.ikeyconnect.R
+import com.sunion.ikeyconnect.ui.theme.FuhsingSmartLockV2AndroidTheme
 
 @Composable
 fun PrimaryButton(
@@ -23,10 +26,15 @@ fun PrimaryButton(
     modifier: Modifier = Modifier,
     height: Dp = dimensionResource(id = R.dimen.space_41),
     width: Dp = dimensionResource(id = R.dimen.space_167),
+    enabled: Boolean = true
 ) {
     Button(
         onClick = onClick,
         shape = RoundedCornerShape(percent = 50),
+        enabled = enabled,
+        colors = ButtonDefaults.buttonColors(
+            disabledBackgroundColor = colorResource(id = R.color.button_disable)
+        ),
         modifier = modifier.size(width = width, height = height)
     ) {
         Text(
@@ -43,7 +51,8 @@ fun PrimaryButton(
 @Preview
 @Composable
 private fun Preview() {
-//    FuhsingSmartLockV2AndroidTheme {
-        PrimaryButton(onClick = {}, text = stringResource(id = R.string.account_log_in))
-//    }
+    FuhsingSmartLockV2AndroidTheme {
+        PrimaryButton(onClick = {}, text = stringResource(id = R.string.account_log_in),
+            enabled = false)
+    }
 }

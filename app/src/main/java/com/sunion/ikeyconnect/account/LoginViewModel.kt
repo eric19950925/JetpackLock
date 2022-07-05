@@ -5,6 +5,8 @@ import android.util.Log
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.*
+import com.amazonaws.auth.CognitoCachingCredentialsProvider
+import com.sunion.ikeyconnect.MqttStatefulConnection
 import com.sunion.ikeyconnect.R
 import com.sunion.ikeyconnect.domain.exception.UsernameException
 import com.sunion.ikeyconnect.domain.exception.UsernameExistsException
@@ -13,6 +15,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 @HiltViewModel
@@ -27,8 +30,10 @@ class LoginViewModel @Inject constructor(
     private val isSignedIn: IsSignedInUseCase,
     private val attachPolicyUseCase: AttachPolicyUseCase,
     private val shareInvitationUseCase: ShareInvitationUseCase,
-    private val getUserStateDetails: UserStateDetailsUseCase
-) : ViewModel() {
+    private val getUserStateDetails: UserStateDetailsUseCase,
+    private val cachingCredentialsProvider: CognitoCachingCredentialsProvider,
+    private val mqttStatefulConnection: MqttStatefulConnection
+    ) : ViewModel() {
 
     private val _logger = MutableLiveData<String>("Welcome~\n")
     val logger: LiveData<String> = _logger
@@ -51,6 +56,8 @@ class LoginViewModel @Inject constructor(
     private val _passwordError = mutableStateOf(savedStateHandle.get("passwordError") ?: "")
     val passwordError: State<String> = _passwordError
 
+    private val USER_POOL_ADDRESS = "cognito-idp.us-east-1.amazonaws.com/us-east-1_9H0qG2JDz"
+
     fun login(){
         signIn.invoke(email.value?:"",password.value?:"")
             .flowOn(Dispatchers.IO)
@@ -59,11 +66,11 @@ class LoginViewModel @Inject constructor(
             .onEach {
                 viewModelScope.launch {
                     _uiEvent.emit(UiEvent.Success)
-                    Log.d("TAG", "login $it.")
+                    Timber.d("login $it.")
                 }
             }
             .catch { e ->
-                Log.e("TAG", "login failure: $e")
+                Timber.e("login failure: $e")
                 if (e is UsernameException)
                     if (e is UsernameExistsException)
                         _emailError.value =
@@ -85,11 +92,11 @@ class LoginViewModel @Inject constructor(
             .flowOn(Dispatchers.IO)
             .onEach {
                 viewModelScope.launch {
-                    Log.d("TAG", "logout success.")
+                    Timber.d("logout success.")
                 }
             }
             .catch { e ->
-                Log.d("TAG","logOut failure: $e")
+                Timber.e("logOut failure: $e")
             }
             .launchIn(viewModelScope)
     }
@@ -110,8 +117,8 @@ class LoginViewModel @Inject constructor(
             }
             .flowOn(Dispatchers.IO)
             .onEach {
-                Log.d("TAG",it.toString()) }
-            .catch { e -> Log.e("TAG",e.toString()) }
+                Timber.d(it.toString()) }
+            .catch { e -> Timber.e(e.toString()) }
             .launchIn(viewModelScope)
     }
     fun setAttachPolicy(){
@@ -121,8 +128,23 @@ class LoginViewModel @Inject constructor(
             }
             .flowOn(Dispatchers.IO)
             .onEach {
-                Log.d("TAG",it.toString()) }
-            .catch { e -> Log.e("TAG",e.toString()) }
+                Timber.d(it.toString()) }
+            .catch { e -> Timber.e(e.toString()) }
+            .launchIn(viewModelScope)
+    }
+
+    fun setCredentialsProvider(){
+        getIdToken()
+            .map{ idToken ->
+                val logins: MutableMap<String, String> = HashMap()
+                logins.put(USER_POOL_ADDRESS, idToken)
+                cachingCredentialsProvider.logins = logins
+            }
+            .map { mqttStatefulConnection.setCredentialsProvider(cachingCredentialsProvider) }
+            .flowOn(Dispatchers.IO)
+            .onEach {
+                Timber.d(it.toString()) }
+            .catch { e -> Timber.e(e.toString()) }
             .launchIn(viewModelScope)
     }
 
@@ -133,12 +155,12 @@ class LoginViewModel @Inject constructor(
             }
             .flowOn(Dispatchers.IO)
             .catch { e ->
-                Log.e("TAG",e.toString())
+                Timber.d(e.toString())
                 logOut()
                 onFailure.invoke()
             }
             .collectLatest {
-                Log.d("TAG","Get Name Once: "+it.toString())
+                Timber.d("Get Name Once: "+it.toString())
                     onSuccess.invoke()
             }
     }

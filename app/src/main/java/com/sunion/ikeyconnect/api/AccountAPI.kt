@@ -40,3 +40,7 @@ interface AccountAPI {
     )
 
 }
+sealed class APIObject(val route: String) {
+    object DeviceList : APIObject("device-list")
+    object DeviceProvision : APIObject("device-provision")
+}

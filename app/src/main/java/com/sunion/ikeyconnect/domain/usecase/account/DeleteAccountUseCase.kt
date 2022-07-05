@@ -13,7 +13,8 @@ class DeleteAccountUseCase @Inject constructor(
     private val changePasswordUseCase: ChangePasswordUseCase,
     private val idTokenUseCase: GetIdTokenUseCase,
     private val accountAPI: AccountAPI,
-    private val signOutAllDeviceUseCase: SignOutAllDeviceUseCase) {
+    private val signOutAllDeviceUseCase: SignOutAllDeviceUseCase
+    ) {
     private val gson = Gson()
     private val MEDIA_TYPE_JSON = MainActivity.CONTENT_TYPE_JSON.toMediaType()
 

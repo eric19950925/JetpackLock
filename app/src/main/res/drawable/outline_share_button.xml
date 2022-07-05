@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="@color/primaryVariant">
+    <item>
+        <layer-list>
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="@android:color/transparent" />
+                    <stroke
+                        android:width="@dimen/space_2"
+                        android:color="@color/primary" />
+                    <corners android:radius="@dimen/space_4" />
+                </shape>
+            </item>
+            <item
+                android:bottom="@dimen/space_8"
+                android:drawable="@drawable/ic_share_primary"
+                android:left="@dimen/space_8"
+                android:right="@dimen/space_8"
+                android:top="@dimen/space_8" >
+            </item>
+        </layer-list>
+    </item>
+</ripple>
