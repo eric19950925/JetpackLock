@@ -24,6 +24,10 @@ class CognitoAmplifyRepository @Inject constructor(
         TODO("Not yet implemented")
     }
 
+    override fun getUuid(): String {
+        TODO("Not yet implemented")
+    }
+
     override fun getIdentityId(): Flow<String> {
         TODO("Not yet implemented")
     }

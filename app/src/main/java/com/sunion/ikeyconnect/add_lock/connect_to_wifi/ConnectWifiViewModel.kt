@@ -3,9 +3,11 @@ package com.sunion.ikeyconnect.add_lock.connect_to_wifi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sunion.ikeyconnect.LockProvider
+import com.sunion.ikeyconnect.add_lock.ProvisionDomain
 import com.sunion.ikeyconnect.domain.blelock.BluetoothConnectState
 import com.sunion.ikeyconnect.domain.command.WifiConnectState
 import com.sunion.ikeyconnect.domain.usecase.account.GetClientTokenUseCase
+import com.sunion.ikeyconnect.domain.usecase.account.GetUuidUseCase
 import com.sunion.ikeyconnect.lock.WifiLock
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -18,6 +20,8 @@ import javax.inject.Inject
 @HiltViewModel
 class ConnectWifiViewModel @Inject constructor(
     private val getClientTokenUseCase: GetClientTokenUseCase,
+    private val provisionDomain: ProvisionDomain,
+    private val getUuid: GetUuidUseCase,
     private val lockProvider: LockProvider
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ConnectWifiUiState())
@@ -89,6 +93,8 @@ class ConnectWifiViewModel @Inject constructor(
                             .onEach {
                                 _uiEvent.emit(ConnectWifiUiEvent.ConnectSuccess)
                                 _uiState.update { it.copy(isProgress = false) }
+                                val gotInfo = provisionDomain.getInfo(clientToken = getUuid.invoke())
+                                Timber.d(gotInfo.toString())
                             }
                             .catch { Timber.e(it) }
                             .launchIn(viewModelScope)
@@ -130,7 +136,7 @@ class ConnectWifiViewModel @Inject constructor(
                 Timber.d(state.toString())
                 when (state) {
                     BluetoothConnectState.DISCONNECTED -> {
-                        reconnectBle()
+//                        reconnectBle()
                         _uiEvent.emit(ConnectWifiUiEvent.BleDisconnected)
                     }
                     BluetoothConnectState.CONNECTED -> connectToWifi()
@@ -145,14 +151,14 @@ class ConnectWifiViewModel @Inject constructor(
 
     private fun reconnectBle() {
         lock?.connect()
-        viewModelScope.launch(Dispatchers.IO) {
-            delay(30_000)
-            if (lock?.isConnected() != true) {
-                _uiState.update { it.copy(showDisconnect = true) }
-                lock?.disconnect()
-                lock?.delete(getClientTokenUseCase())
-            }
-        }
+//        viewModelScope.launch(Dispatchers.IO) {
+//            delay(30_000)
+//            if (lock?.isConnected() != true) {
+//                _uiState.update { it.copy(showDisconnect = true) }
+//                lock?.disconnect()
+//                lock?.delete(getClientTokenUseCase())
+//            }
+//        }
     }
 }
 

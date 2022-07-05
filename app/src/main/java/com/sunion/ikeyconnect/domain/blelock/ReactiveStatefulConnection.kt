@@ -161,7 +161,7 @@ class ReactiveStatefulConnection @Inject constructor(
 //                emitSuccess()
             }
             .catch {
-                Timber.tag("WifiLock.connectToDevice").e(it)
+//                Timber.tag("WifiLock.connectToDevice").e(it)
                 _bleDevice = null
                 emitConnectionState(Event.error(TimeoutException::class.java.simpleName))
 //                emitWifiListState((WiFiListUiState()))

@@ -154,24 +154,6 @@ class WifiLock @Inject constructor(
                 true
             }
 
-    suspend fun deviceProvisionCreate(
-        serialNumber: String,
-        deviceName: String,
-        timeZone: String,
-        timeZoneOffset: Int,
-        clientToken: String,
-        model: String,
-    ): Boolean {
-        return iotService.deviceProvisionCreate(
-            serialNumber,
-            deviceName,
-            timeZone,
-            timeZoneOffset,
-            clientToken,
-            model
-        )
-    }
-
     suspend fun lockByNetwork(clientToken: String?): LockSetting {
 
         val idToken = runCatching {

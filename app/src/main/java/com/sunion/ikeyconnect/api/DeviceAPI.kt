@@ -11,6 +11,13 @@ interface DeviceAPI {
     suspend fun deviceProvisionCreate(
         @Body request: DeviceProvisionCreateRequest
     ): DeviceProvisionCreateResponse
+    /**
+     * 查詢授權配對資訊
+     */
+    @POST("device-provision/ticket/get")
+    suspend fun deviceProvisionTicketGet(
+        @Body request: DeviceProvisionTicketGetRequest
+    ): DeviceProvisionTicketGetResponse
 
     /**
      * 裝置列表

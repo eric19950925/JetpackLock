@@ -91,8 +91,8 @@ class WifiListViewModel @Inject constructor(
                     collectWifiList()
                     scanWIfi()
                 }
-                else if (state == BluetoothConnectState.DISCONNECTED)
-                    reconnect()
+//                else if (state == BluetoothConnectState.DISCONNECTED)
+//                    reconnect()
             }
             .catch { Timber.e(it) }
             .launchIn(viewModelScope)
@@ -104,17 +104,17 @@ class WifiListViewModel @Inject constructor(
         runCatching { wifiLock.connect() }.getOrElse { Timber.e(it) }
 
         //Todo 沒有辦法重連，就要刪掉lock?? -> 5min
-        flow { emit(delay(300000)) }
-            .flowOn(Dispatchers.IO)
-            .onEach {
-                if (!wifiLock.isConnected()) {
-                    _uiState.update { it.copy(showDisconnect = true) }
-                    wifiLock.disconnect()
-                    wifiLock.delete(getClientTokenUseCase())
-                }
-            }
-            .catch { Timber.e(it) }
-            .launchIn(viewModelScope)
+//        flow { emit(delay(300000)) }
+//            .flowOn(Dispatchers.IO)
+//            .onEach {
+//                if (!wifiLock.isConnected()) {
+//                    _uiState.update { it.copy(showDisconnect = true) }
+//                    wifiLock.disconnect()
+//                    wifiLock.delete(getClientTokenUseCase())
+//                }
+//            }
+//            .catch { Timber.e(it) }
+//            .launchIn(viewModelScope)
     }
 
     fun scanWIfi() {

@@ -1,7 +1,6 @@
 package com.sunion.ikeyconnect.di
 
 import android.app.Application
-import android.util.Log
 import com.amazonaws.auth.CognitoCachingCredentialsProvider
 import com.amazonaws.mobile.client.AWSMobileClient
 import com.amazonaws.mobile.client.Callback
@@ -11,6 +10,7 @@ import com.amazonaws.regions.Regions
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.sunion.ikeyconnect.*
+import com.sunion.ikeyconnect.add_lock.ProvisionDomain
 import com.sunion.ikeyconnect.api.AccountAPI
 import com.sunion.ikeyconnect.api.AuthInterceptor
 import com.sunion.ikeyconnect.api.DeviceAPI
@@ -28,6 +28,7 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory
 import retrofit2.converter.gson.GsonConverterFactory
+import timber.log.Timber
 import java.util.*
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
@@ -42,11 +43,11 @@ object AppModule {
         AWSMobileClient.getInstance().apply {
             initialize(application, object : Callback<UserStateDetails> {
                 override fun onResult(result: UserStateDetails?) {
-                    Log.d("TAG", "AWSMobileClient: "+result?.userState)
+                    Timber.d("AWSMobileClient: "+result?.userState)
                 }
 
                 override fun onError(e: Exception?) {
-                    Log.e("TAG", e.toString())
+                    Timber.e( e.toString())
                 }
             })
         }
@@ -109,8 +110,8 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideStatefulConnection(awsIotMqttManager: AWSIotMqttManager, topicRepositoryImpl: TopicRepositoryImpl) =
-        MqttStatefulConnection(awsIotMqttManager, topicRepositoryImpl)
+    fun provideStatefulConnection(awsIotMqttManager: AWSIotMqttManager, topicRepositoryImpl: TopicRepositoryImpl, application: Application) =
+        MqttStatefulConnection(awsIotMqttManager, topicRepositoryImpl, application)
 
     @Provides
     @Singleton
@@ -126,6 +127,11 @@ object AppModule {
     @Singleton
     fun provideSunionService(remoteDeviceRepository: RemoteDeviceRepository): SunionIotService =
         SunionIotServiceImpl(remoteDeviceRepository)
+
+    @Provides
+    @Singleton
+    fun provideProvisionDomain(sunionIotService: SunionIotService) =
+        ProvisionDomain(sunionIotService, Dispatchers.IO)
 
     @Provides
     @Singleton

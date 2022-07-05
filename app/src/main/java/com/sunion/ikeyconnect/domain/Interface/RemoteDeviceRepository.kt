@@ -1,11 +1,11 @@
 package com.sunion.ikeyconnect.domain.Interface
 
-import com.sunion.ikeyconnect.domain.model.sunion_service.DeviceListResponse
-import com.sunion.ikeyconnect.domain.model.sunion_service.DeviceProvisionCreateRequest
-import com.sunion.ikeyconnect.domain.model.sunion_service.DeviceUpdateResponse
+import com.sunion.ikeyconnect.domain.model.sunion_service.*
 
 interface RemoteDeviceRepository {
     suspend fun create(request: DeviceProvisionCreateRequest): String
+
+    suspend fun ticketGet(request: DeviceProvisionTicketGetRequest): DeviceProvisionTicketGetResponse
 
     suspend fun list(clientToken: String): DeviceListResponse
 

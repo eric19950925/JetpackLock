@@ -32,6 +32,9 @@ class MainActivity : AppCompatActivity() {
     @Inject
     lateinit var mqttManager: AWSIotMqttManager
 
+    @Inject
+    lateinit var mqttStatefulConnection: MqttStatefulConnection
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -46,13 +49,37 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
+    override fun onStop() {
+        super.onStop()
+        Timber.d("onStop")
         try {
+            mqttStatefulConnection.unsubscribeAllTopic()
             mqttManager.disconnect()
             Timber.d("mqttDisconnect success.")
         }catch (e: Exception){
-            Timber.d( "mqttDisconnect error.", e)
+            Timber.e( "mqttDisconnect error: $e")
+        }
+    }
+
+    override fun onRestart() {
+        super.onRestart()
+        Timber.d("onRestart")
+        try {
+            mqttStatefulConnection.connectMqtt()
+            Timber.d("mqttConnecting...")
+        }catch (e: Exception){
+            Timber.e( "mqttConnect error: $e")
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        try {
+            mqttStatefulConnection.unsubscribeAllTopic()
+            mqttManager.disconnect()
+            Timber.d("mqttDisconnect success.")
+        }catch (e: Exception){
+            Timber.e( "mqttDisconnect error: $e")
         }
     }
 

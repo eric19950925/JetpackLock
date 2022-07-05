@@ -66,11 +66,11 @@ class LoginViewModel @Inject constructor(
             .onEach {
                 viewModelScope.launch {
                     _uiEvent.emit(UiEvent.Success)
-                    Log.d("TAG", "login $it.")
+                    Timber.d("login $it.")
                 }
             }
             .catch { e ->
-                Log.e("TAG", "login failure: $e")
+                Timber.e("login failure: $e")
                 if (e is UsernameException)
                     if (e is UsernameExistsException)
                         _emailError.value =
@@ -92,11 +92,11 @@ class LoginViewModel @Inject constructor(
             .flowOn(Dispatchers.IO)
             .onEach {
                 viewModelScope.launch {
-                    Log.d("TAG", "logout success.")
+                    Timber.d("logout success.")
                 }
             }
             .catch { e ->
-                Log.d("TAG","logOut failure: $e")
+                Timber.e("logOut failure: $e")
             }
             .launchIn(viewModelScope)
     }
@@ -117,8 +117,8 @@ class LoginViewModel @Inject constructor(
             }
             .flowOn(Dispatchers.IO)
             .onEach {
-                Log.d("TAG",it.toString()) }
-            .catch { e -> Log.e("TAG",e.toString()) }
+                Timber.d(it.toString()) }
+            .catch { e -> Timber.e(e.toString()) }
             .launchIn(viewModelScope)
     }
     fun setAttachPolicy(){
@@ -128,8 +128,8 @@ class LoginViewModel @Inject constructor(
             }
             .flowOn(Dispatchers.IO)
             .onEach {
-                Log.d("TAG",it.toString()) }
-            .catch { e -> Log.e("TAG",e.toString()) }
+                Timber.d(it.toString()) }
+            .catch { e -> Timber.e(e.toString()) }
             .launchIn(viewModelScope)
     }
 
@@ -155,12 +155,12 @@ class LoginViewModel @Inject constructor(
             }
             .flowOn(Dispatchers.IO)
             .catch { e ->
-                Log.e("TAG",e.toString())
+                Timber.d(e.toString())
                 logOut()
                 onFailure.invoke()
             }
             .collectLatest {
-                Log.d("TAG","Get Name Once: "+it.toString())
+                Timber.d("Get Name Once: "+it.toString())
                     onSuccess.invoke()
             }
     }

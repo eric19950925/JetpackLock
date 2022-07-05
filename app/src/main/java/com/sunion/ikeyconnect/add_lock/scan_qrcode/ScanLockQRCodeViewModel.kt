@@ -2,17 +2,11 @@ package com.sunion.ikeyconnect.add_lock.scan_qrcode
 
 import android.app.Application
 import android.net.Uri
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sunion.ikeyconnect.LockProvider
 import com.sunion.ikeyconnect.R
-import com.sunion.ikeyconnect.data.SunionTraits
-import com.sunion.ikeyconnect.data.getFirmwareModelTraits
-import com.sunion.ikeyconnect.domain.LockQRCodeParser
 import com.sunion.ikeyconnect.domain.exception.LockAlreadyExistedException
-import com.sunion.ikeyconnect.domain.model.LockInfo
-import com.sunion.ikeyconnect.domain.usecase.account.GetClientTokenUseCase
 import com.sunion.ikeyconnect.domain.usecase.add_lock.ParsingQRCodeFromImageUriUseCase
 import com.sunion.ikeyconnect.domain.usecase.device.SaveLockInfoUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,7 +21,6 @@ class ScanLockQRCodeViewModel @Inject constructor(
     private val parsingQRCodeFromImageUriUseCase: ParsingQRCodeFromImageUriUseCase,
     private val saveLockInfoUseCase: SaveLockInfoUseCase,
     private val application: Application,
-    private val getClientTokenUseCase: GetClientTokenUseCase,
     private val lockProvider: LockProvider,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ScanLockQRCodeUiState())
@@ -40,8 +33,7 @@ class ScanLockQRCodeViewModel @Inject constructor(
         Timber.d(content)
 
         flow {
-            val awsClientToken = getClientTokenUseCase()
-            emit(lockProvider.getLockByQRCode(content, awsClientToken))
+            emit(lockProvider.getLockByQRCode(content))
         }
             .onEach {
                 if (it == null) {

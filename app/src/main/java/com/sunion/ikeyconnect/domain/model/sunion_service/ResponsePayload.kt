@@ -7,6 +7,22 @@ data class DeviceProvisionCreateResponse(
     @SerializedName("clientToken") val clientToken: String,
 )
 
+data class DeviceProvisionTicketGetResponse(
+    @SerializedName("Ticket") val ticket: String,
+    @SerializedName("ApplicationID") val applicationID: String,
+    @SerializedName("Model") val model: String,
+    @SerializedName("SerialNumber") val serialNumber: String,
+    @SerializedName("DeviceName") val deviceName: String,
+    @SerializedName("Timezone") val timezone: Timezone,
+    @SerializedName("DataEncryptionKey") val dataEncryptionKey: String,
+    @SerializedName("clientToken") val clientToken: String,
+) {
+    data class Timezone(
+        @SerializedName("ShortName") val shortName: String,
+        @SerializedName("Offset") val offset: Int,
+    )
+}
+
 data class DeviceListResponse(
     @SerializedName("Devices") val devices: List<Device>,
     @SerializedName("ShareDevices") val shareDevices: List<ShareDevice>,

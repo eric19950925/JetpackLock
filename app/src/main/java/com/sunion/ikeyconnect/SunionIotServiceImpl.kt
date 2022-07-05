@@ -4,6 +4,8 @@ import com.sunion.ikeyconnect.domain.Interface.RemoteDeviceRepository
 import com.sunion.ikeyconnect.domain.Interface.SunionIotService
 import com.sunion.ikeyconnect.domain.model.sunion_service.DeviceListResponse
 import com.sunion.ikeyconnect.domain.model.sunion_service.DeviceProvisionCreateRequest
+import com.sunion.ikeyconnect.domain.model.sunion_service.DeviceProvisionTicketGetRequest
+import com.sunion.ikeyconnect.domain.model.sunion_service.DeviceProvisionTicketGetResponse
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -20,7 +22,7 @@ class SunionIotServiceImpl @Inject constructor(
         timeZoneOffset: Int,
         clientToken: String,
         model: String,
-    ): Boolean {
+    ): String {
         return runCatching {
             remoteDeviceRepository.create(
                 DeviceProvisionCreateRequest(
@@ -35,10 +37,24 @@ class SunionIotServiceImpl @Inject constructor(
                     dataEncryptionKey = "Sunion_20220620",
                     clientToken = clientToken
                 )
-            ) == clientToken
+            )
         }.getOrElse {
             Timber.e(it)
-            false
+            ""
+        }
+    }
+
+    override suspend fun deviceProvisionTicketGet(Ticket: String, clientToken: String): DeviceProvisionTicketGetResponse {
+        return runCatching {
+            remoteDeviceRepository.ticketGet(
+                DeviceProvisionTicketGetRequest(
+                    Ticket = Ticket,
+                    clientToken = clientToken,
+                )
+            )
+        }.getOrElse {
+            Timber.e(it)
+            DeviceProvisionTicketGetResponse("","","","","",DeviceProvisionTicketGetResponse.Timezone("",0),"","")
         }
     }
 

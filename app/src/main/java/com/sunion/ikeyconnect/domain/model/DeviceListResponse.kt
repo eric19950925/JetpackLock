@@ -9,7 +9,7 @@ data class DeviceListResponseBody (
     val Devices: List<DeviceThing>?,
     val ShareDevices: List<DeviceThing>?,
     val Timestamp: Int,
-    val clientToken: String,
+    val clientToken: String?,
 )
 
 data class DeviceThing (

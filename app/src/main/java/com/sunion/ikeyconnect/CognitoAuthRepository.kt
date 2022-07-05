@@ -1,5 +1,6 @@
 package com.sunion.ikeyconnect
 
+import android.os.Build
 import android.util.Log
 import com.amazonaws.AmazonServiceException
 import com.amazonaws.mobile.client.AWSMobileClient
@@ -17,6 +18,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.*
+import java.util.*
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,6 +27,8 @@ class CognitoAuthRepository @Inject constructor(
     private val mobileClient: AWSMobileClient,
     private val dispatcher: CoroutineDispatcher
 ): AuthRepository {
+
+    private val UUID_clientToken = Build.MODEL.replace(" ","_")+UUID.randomUUID().toString()
 
     companion object {
         private const val USER_ATTRIBUTE_EMAIL = "email"
@@ -75,8 +79,11 @@ class CognitoAuthRepository @Inject constructor(
     }
 
     override fun getIdToken(): Flow<String> = flow {
-        Log.d("TAG",mobileClient.tokens.idToken.tokenString)
         emit(mobileClient.tokens.idToken.tokenString)
+    }
+
+    override fun getUuid(): String {
+        return UUID_clientToken
     }
 
     override fun getIdentityId(): Flow<String>  = flow {

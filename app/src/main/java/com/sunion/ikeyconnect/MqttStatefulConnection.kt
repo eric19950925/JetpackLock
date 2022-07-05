@@ -1,7 +1,10 @@
 package com.sunion.ikeyconnect
 
+import android.app.Application
 import com.amazonaws.auth.AWSCredentialsProvider
 import com.amazonaws.mobileconnectors.iot.*
+import com.amazonaws.services.cognitoidentity.model.NotAuthorizedException
+import com.jakewharton.processphoenix.ProcessPhoenix
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -13,12 +16,12 @@ import javax.inject.Singleton
 class MqttStatefulConnection @Inject constructor(
     private val mqttManager: AWSIotMqttManager,
     private val repo: TopicRepositoryImpl,
+    private val context: Application
 ){
     private val _connectionState = MutableSharedFlow<ConnectMqttUiEvent>()
     val connectionState: SharedFlow<ConnectMqttUiEvent> = _connectionState
     private val topicSubscribedList = mutableListOf<String>()
     private var credentialsProvider: AWSCredentialsProvider? = null
-    var isReconnected = false
 
     fun setCredentialsProvider(awsCredentialsProvider: AWSCredentialsProvider){
         credentialsProvider = awsCredentialsProvider
@@ -37,16 +40,20 @@ class MqttStatefulConnection @Inject constructor(
                         Timber.d("Mqtt Connected")
                         runBlocking {
                             _connectionState.emit(ConnectMqttUiEvent.Connected)
+                            unsubscribeAllTopic() // must do after emit
                         }
                     }
                     AWSIotMqttClientStatusCallback.AWSIotMqttClientStatus.ConnectionLost -> {
                         Timber.d("Mqtt ConnectionLost")
-                        runBlocking {_connectionState.emit(ConnectMqttUiEvent.ConnectionLost)}
+                        runBlocking {
+                            /** activity stop or destroy.*/
+                            _connectionState.emit(ConnectMqttUiEvent.ConnectionLost)
+                        }
                     }
                     AWSIotMqttClientStatusCallback.AWSIotMqttClientStatus.Reconnecting -> {
                         Timber.d("Mqtt Reconnecting")
                         runBlocking {
-                            isReconnected = true
+                            /** wifi disconnect*/
                             _connectionState.emit(ConnectMqttUiEvent.Reconnecting)
                         }
                     }
@@ -61,23 +68,36 @@ class MqttStatefulConnection @Inject constructor(
             }
 
         mqttManager.setAutoResubscribe(true)
-        mqttManager.setAutoReconnect(true)
+        mqttManager.isAutoReconnect = true
         mqttManager.maxAutoReconnectAttempts = 99
         mqttManager.keepAlive = 15
 
-        mqttManager.connect(credentialsProvider, mAWSIotMqttClientStatusCallback)
+        try {
+            mqttManager.connect(credentialsProvider, mAWSIotMqttClientStatusCallback)
+        }catch (e: Exception){
+            when(e){
+                is NotAuthorizedException -> ProcessPhoenix.triggerRebirth(context)
+                else -> { Timber.e(e) }
+            }
+        }
 
     }
 
-    fun pubDeviceList(idToken: String, identityId: String) {
+    fun unsubscribeAllTopic() {
+        topicSubscribedList.forEach { mqttManager.unsubscribeTopic(it) }
+        topicSubscribedList.clear()
+        Timber.d("Unsubscribe All Topic.")
+    }
+
+    fun pubDeviceList(idToken: String, identityId: String, getUuid: String) {
         val payload =
-            "{\"API\":\"device-list\",\"RequestBody\":{\"clientToken\":\"AAA\"},\"Authorization\":\"${idToken}\"}"
+            "{\"API\":\"device-list\",\"RequestBody\":{\"clientToken\":\"${getUuid}\"},\"Authorization\":\"${idToken}\"}"
 
         mqttManager.publishString(payload, repo.apiPortalTopic(identityId), AWSIotMqttQos.QOS0)
     }
 
-    fun pubGetThingShadow(thingName: String){
-        val payload = "{\"clientToken\":\"${thingName}\"}"
+    fun pubGetThingShadow(thingName: String, getUuid: String){
+        val payload = "{\"clientToken\":\"$getUuid\"}"
         mqttManager.publishString(payload, repo.thingGetTopic(thingName), AWSIotMqttQos.QOS0)
     }
 
@@ -87,37 +107,48 @@ class MqttStatefulConnection @Inject constructor(
         mqttManager.subscribeToTopic(repo.thingUpdateDocTopic(thingName), AWSIotMqttQos.QOS0, callback)
     }
 
-    fun subPubGetThingShadow(thingName: String, callbackForMqtt: AWSIotMqttNewMessageCallback) {
+    fun subGetThingShadow(
+        thingName: String,
+        getUuid: String,
+        callbackForMqtt: AWSIotMqttNewMessageCallback
+    ) {
         /** Remember the topics you had subscribed */
         if(!topicSubscribedList.contains(repo.thingGetAcceptedTopic(thingName))){
             topicSubscribedList.add(repo.thingGetAcceptedTopic(thingName))
             topicSubscribedList.add(repo.thingGetRejectedTopic(thingName))
-            mqttManager.subscribeToTopic(repo.thingGetAcceptedTopic(thingName), AWSIotMqttQos.QOS0, callbackForPub_GetDeviceShadow(thingName), callbackForMqtt)
-            mqttManager.subscribeToTopic(repo.thingGetRejectedTopic(thingName), AWSIotMqttQos.QOS0, callbackForMqtt)
+            mqttManager.subscribeToTopic(repo.thingGetAcceptedTopic(thingName), AWSIotMqttQos.QOS0, callbackForPub_GetThingShadow(thingName, getUuid), callbackForMqtt)
+            mqttManager.subscribeToTopic(repo.thingGetRejectedTopic(thingName), AWSIotMqttQos.QOS0
+            ) { _, data ->
+                val message = String(data?:return@subscribeToTopic, Charsets.UTF_8)
+                Timber.d("callbackMqttGetThing Msg: $message")
+            }
         }
     }
 
-    private fun callbackForPub_GetDeviceShadow(thingName: String) = object: AWSIotMqttSubscriptionStatusCallback{
+    private fun callbackForPub_GetThingShadow(thingName: String, getUuid: String) = object: AWSIotMqttSubscriptionStatusCallback{
         override fun onSuccess() {
-            Timber.d("sub succ do pub")
-            pubGetThingShadow(thingName)
+            Timber.d("===// Sub success do Pub //===")
+            pubGetThingShadow(thingName, getUuid)
         }
 
         override fun onFailure(exception: Throwable?) { Timber.e(exception) }
     }
 
-    fun subscribeApiPortal(idToken: String, identityId: String, callbackForMqtt: AWSIotMqttNewMessageCallback) {
+    fun subscribeApiPortal(idToken: String, identityId: String, getUuid: String, callbackForMqtt: AWSIotMqttNewMessageCallback) {
         if(!topicSubscribedList.contains(repo.apiPortalAcceptedTopic(identityId))){
             topicSubscribedList.add(repo.apiPortalAcceptedTopic(identityId))
             topicSubscribedList.add(repo.apiPortalRejectedTopic(identityId))
-            mqttManager.subscribeToTopic(repo.apiPortalAcceptedTopic(identityId), AWSIotMqttQos.QOS0, callbackForPub_ApiPortal(idToken, identityId), callbackForMqtt)
-            mqttManager.subscribeToTopic(repo.apiPortalRejectedTopic(identityId), AWSIotMqttQos.QOS0, callbackForMqtt)
+            mqttManager.subscribeToTopic(repo.apiPortalAcceptedTopic(identityId), AWSIotMqttQos.QOS0, callbackForPub_ApiPortal(idToken, identityId, getUuid), callbackForMqtt)
+            mqttManager.subscribeToTopic(repo.apiPortalRejectedTopic(identityId), AWSIotMqttQos.QOS0) { _, data ->
+                val message = String(data?:return@subscribeToTopic, Charsets.UTF_8)
+                Timber.d("callbackMqttGetThing Msg: $message")
+            }
         }
     }
-    private fun callbackForPub_ApiPortal(idToken: String, identityId: String) = object: AWSIotMqttSubscriptionStatusCallback{
+    private fun callbackForPub_ApiPortal(idToken: String, identityId: String, getUuid: String) = object: AWSIotMqttSubscriptionStatusCallback{
         override fun onSuccess() {
-            Timber.d("sub succ do pub")
-            pubDeviceList(idToken, identityId)
+            Timber.d("===// Sub success do Pub //===")
+            pubDeviceList(idToken, identityId, getUuid)
         }
 
         override fun onFailure(exception: Throwable?) { Timber.e(exception) }

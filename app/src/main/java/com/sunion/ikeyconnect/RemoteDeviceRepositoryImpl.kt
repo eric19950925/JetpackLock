@@ -12,7 +12,11 @@ class RemoteDeviceRepositoryImpl @Inject constructor(
     private val deviceAPI: DeviceAPI
     ) : RemoteDeviceRepository {
     override suspend fun create(request: DeviceProvisionCreateRequest): String =
-        deviceAPI.deviceProvisionCreate(request = request).clientToken
+        deviceAPI.deviceProvisionCreate(request = request).ticket
+
+    override suspend fun ticketGet(request: DeviceProvisionTicketGetRequest): DeviceProvisionTicketGetResponse =
+        deviceAPI.deviceProvisionTicketGet(request = request)
+
 
     override suspend fun list(clientToken: String): DeviceListResponse =
         deviceAPI.deviceList(clientToken = clientToken)

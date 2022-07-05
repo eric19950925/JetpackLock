@@ -1,6 +1,7 @@
 package com.sunion.ikeyconnect.domain.Interface
 
 import com.sunion.ikeyconnect.domain.model.sunion_service.DeviceListResponse
+import com.sunion.ikeyconnect.domain.model.sunion_service.DeviceProvisionTicketGetResponse
 
 
 interface SunionIotService {
@@ -11,7 +12,12 @@ interface SunionIotService {
         timeZoneOffset: Int,
         clientToken: String,
         model: String,
-    ): Boolean
+    ): String
+
+    suspend fun deviceProvisionTicketGet(
+        Ticket: String,
+        clientToken: String,
+    ): DeviceProvisionTicketGetResponse
 
     suspend fun getDeviceList(clientToken: String): List<DeviceListResponse.Device>
 

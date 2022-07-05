@@ -9,7 +9,7 @@ class AuthInterceptor (private val awsMobileClient: AWSMobileClient) : Intercept
     override fun intercept(chain: Interceptor.Chain): Response {
         val requestBuilder = chain.request().newBuilder().apply {
             val tokenString = awsMobileClient.tokens.idToken.tokenString
-            Timber.tag("OkHttpClient").d("Authorization: $tokenString")
+            Timber.tag("AuthInterceptor").d("Authorization: $tokenString")
             addHeader("Authorization", "Bearer $tokenString")
         }
         return chain.proceed(requestBuilder.build())

@@ -81,6 +81,11 @@ data class DeviceAccessCodeUpdateRequest(
     }
 }
 
+data class DeviceProvisionTicketGetRequest(
+    @SerializedName("Ticket") val Ticket: String,
+    @SerializedName("clientToken") val clientToken: String,
+)
+
 data class DeviceProvisionDeleteRequest(
     @SerializedName("DeviceIdentity") val deviceIdentity: String,
     @SerializedName("clientToken") val clientToken: String,
