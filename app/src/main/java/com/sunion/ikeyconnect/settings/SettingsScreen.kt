@@ -53,7 +53,9 @@ fun SettingsScreen(viewModel: SettingsViewModel, navController: NavController) {
         onNaviUpClick = navController::popBackStack,
         onDeleteClick = viewModel::delete,
         state = uiState,
-        isConnected = viewModel.isConnected
+        isConnected = viewModel.isConnected,
+        onEventLogClick = { thingName ->
+            navController.navigate("${SettingRoute.EventLog.route}/$thingName/${uiState.wifiLock.Attributes.DeviceName}") },
     )
 
     if (uiState.showDeleteConfirmDialog)
@@ -71,7 +73,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, navController: NavController) {
         )
 
     if (uiState.isLoading)
-        LoadingScreenDialog()
+        LoadingScreenDialog("")
 }
 
 @Composable
@@ -79,6 +81,7 @@ fun SettingsScreen(
     state: SettingsUiState,
     onNaviUpClick: () -> Unit,
     onDeleteClick: () -> Unit,
+    onEventLogClick: (String) -> Unit,
     isConnected: Boolean,
     modifier: Modifier = Modifier
 ) {
@@ -101,7 +104,7 @@ fun SettingsScreen(
         Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
             if (isConnected) {
                 SettingItem {
-                    Text(text = "${state.lockBattery}%", style = textStyle)
+                    Text(text = "${state.wifiLock.LockState.Battery}%", style = textStyle)
                     Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.space_15)))
                     Image(
                         painter = painterResource(id = R.drawable.ic_battery_full),
@@ -147,6 +150,22 @@ fun SettingsScreen(
                             .rotate(180f)
                             .size(dimensionResource(id = R.dimen.space_24))
                             .padding(4.dp)
+                    )
+                }
+                IKeyDivider()
+                SettingItem {
+                    Text(text = stringResource(id = R.string.setting_event_log), style = textStyle)
+                    Spacer(modifier = Modifier
+                        .weight(1f)
+                        )
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_arrow_back),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .rotate(180f)
+                            .size(dimensionResource(id = R.dimen.space_24))
+                            .padding(4.dp)
+                            .clickable(onClick = { onEventLogClick(state.macAddressOrThingName) }),
                     )
                 }
                 IKeyDivider()
@@ -252,7 +271,7 @@ private fun SettingItem(
 @Composable
 private fun Preview() {
     FuhsingSmartLockV2AndroidTheme {
-        SettingsScreen(onNaviUpClick = {}, onDeleteClick = {}, isConnected = true, state = SettingsUiState())
+        SettingsScreen(onNaviUpClick = {}, onDeleteClick = {}, onEventLogClick = {}, isConnected = true, state = SettingsUiState())
         @Composable
         fun SettingsScreen(viewModel: SettingsViewModel, navController: NavController) {
             val uiState = viewModel.uiState.collectAsState().value
@@ -272,6 +291,7 @@ private fun Preview() {
             SettingsScreen(
                 onNaviUpClick = navController::popBackStack,
                 onDeleteClick = viewModel::delete,
+                onEventLogClick = {},
                 isConnected = viewModel.isConnected,
                 state = SettingsUiState()
             )
@@ -291,7 +311,7 @@ private fun Preview() {
                 )
 
             if (uiState.isLoading)
-                LoadingScreenDialog()
+                LoadingScreenDialog("")
         }
 
         @Composable
@@ -489,6 +509,6 @@ private fun Preview() {
 @Composable
 private fun PreviewDisconnected() {
     FuhsingSmartLockV2AndroidTheme {
-        SettingsScreen(onNaviUpClick = {}, onDeleteClick = {}, isConnected = false, state = SettingsUiState())
+        SettingsScreen(onNaviUpClick = {}, onDeleteClick = {}, onEventLogClick = {}, isConnected = false, state = SettingsUiState())
     }
 }

@@ -34,4 +34,6 @@ interface RemoteDeviceRepository {
     suspend fun lock(thingName: String, clientToken: String)
 
     suspend fun unlock(thingName: String, clientToken: String)
+
+    suspend fun getEvent(thingName: String, timestamp: Int, clientToken: String): EventGetResponse
 }

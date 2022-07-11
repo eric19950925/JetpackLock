@@ -34,7 +34,10 @@ class LoginViewModel @Inject constructor(
     private val cachingCredentialsProvider: CognitoCachingCredentialsProvider,
     private val mqttStatefulConnection: MqttStatefulConnection
     ) : ViewModel() {
-
+    override fun onCleared() {
+        super.onCleared()
+        Timber.tag("LoginViewModel").d("onCleared")
+    }
     private val _logger = MutableLiveData<String>("Welcome~\n")
     val logger: LiveData<String> = _logger
 

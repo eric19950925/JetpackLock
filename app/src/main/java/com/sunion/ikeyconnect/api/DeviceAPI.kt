@@ -58,4 +58,10 @@ interface DeviceAPI {
      */
     @POST("device-shadow/update")
     suspend fun deviceShadowUpdateRunCheck(@Body request: DeviceShadowUpdateRunCheckRequest): DeviceShadowUpdateLockResponse
+
+    /**
+     * 裝置設定 - 取得事件紀錄
+     */
+    @POST("event/get")
+    suspend fun eventGet(@Body request: EventGetRequest): EventGetResponse
 }

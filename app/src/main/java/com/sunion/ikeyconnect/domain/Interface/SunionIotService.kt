@@ -2,6 +2,9 @@ package com.sunion.ikeyconnect.domain.Interface
 
 import com.sunion.ikeyconnect.domain.model.sunion_service.DeviceListResponse
 import com.sunion.ikeyconnect.domain.model.sunion_service.DeviceProvisionTicketGetResponse
+import com.sunion.ikeyconnect.domain.model.sunion_service.EventGetResponse
+import com.sunion.ikeyconnect.domain.usecase.account.GetIdentityIdUseCase
+import java.sql.Timestamp
 
 
 interface SunionIotService {
@@ -47,4 +50,6 @@ interface SunionIotService {
     suspend fun lock(thingName: String, clientToken: String)
 
     suspend fun unlock(thingName: String, clientToken: String)
+
+    suspend fun getEvent(thingName: String, timestamp: Int, clientToken: String): EventGetResponse
 }

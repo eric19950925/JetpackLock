@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
@@ -38,6 +39,7 @@ import com.sunion.ikeyconnect.domain.blelock.BluetoothConnectState
 import com.sunion.ikeyconnect.home.HomeUiState
 import com.sunion.ikeyconnect.R
 import com.sunion.ikeyconnect.domain.model.*
+import com.sunion.ikeyconnect.getLockState
 import com.sunion.ikeyconnect.ui.theme.FuhsingSmartLockV2AndroidTheme
 
 @OptIn(ExperimentalPagerApi::class)
@@ -54,6 +56,7 @@ fun Locks(
     getUpdateTime: (String) -> Int?,
     networkAvailable: Boolean,
     onSaveNameClick: (String) -> Unit,
+    isLoading: Boolean,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -86,7 +89,8 @@ fun Locks(
                 macAddress = lock.Attributes.Bluetooth.MACAddress,
                 isWifi = true,
                 name = lock.Attributes.DeviceName,
-                permission = "lock.permission"
+                permission = "lock.permission",
+                isLoading = isLoading,
             )
         }
 
@@ -130,6 +134,7 @@ private fun Lock(
     isWifi: Boolean,
     name: String,
     permission: String,
+    isLoading: Boolean,
 ) {
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -152,7 +157,7 @@ private fun Lock(
         )
 
         Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.space_56)))
-        LockStatusImage(lock = lock, onLockClick = onLockClick)
+        LockStatusImage(lock = lock, onLockClick = onLockClick, isLoading = isLoading)
 
         Spacer(modifier = Modifier.weight(1f))
         ActionRow(
@@ -161,6 +166,7 @@ private fun Lock(
             onManageClick = onManageClick,
             onUserCodeClick = onUserCodeClick,
             onSettingClick = onSettingClick,
+            thingName = lock.ThingName,
             permission = permission,
             macAddress = macAddress
         )
@@ -309,49 +315,56 @@ private fun LockName(
 private fun LockStatusImage(
     lock: WiFiLock,
     onLockClick: () -> Unit,
+    isLoading: Boolean,
     modifier: Modifier = Modifier,
 ) {
+
     val infiniteTransition = rememberInfiniteTransition()
-    val rotate by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
+    val angle by infiniteTransition.animateFloat(
+        initialValue = 0F,
+        targetValue = 360F,
         animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = LinearOutSlowInEasing),
-            repeatMode = RepeatMode.Restart
+            animation = tween(2000, easing = LinearEasing)
         )
     )
-    Image(
-        painter = painterResource(
-            id =
-            when {
+    Box(modifier = Modifier.wrapContentHeight().wrapContentWidth(), Alignment.Center) {
+        Image(
+            painter = painterResource(
+                id =
+                when {
 //                lock.isProcessing -> R.drawable.vector_lock_state_loading
-                !lock.LockState.Connected -> R.drawable.vector_lock_state_not_connected
-                lock.LockState.Direction == "unknown" -> R.drawable.vector_lock_state_bolt_required
-                else ->
-                    when (lock.LockState.Deadbolt.getLockState()) {
-                    LockStatus.LOCKED -> R.drawable.vector_lock_state_locked
-                    LockStatus.UNLOCKED -> R.drawable.vector_lock_state_unlocked
+                    !lock.LockState.Connected -> R.drawable.vector_lock_state_not_connected
+                    lock.LockState.Direction == "unknown" -> R.drawable.vector_lock_state_bolt_required
+                    else ->
+                        when (lock.LockState.Deadbolt.getLockState()) {
+                            LockStatus.LOCKED -> R.drawable.vector_lock_state_locked
+                            LockStatus.UNLOCKED -> R.drawable.vector_lock_state_unlocked
 //                    else -> R.drawable.vector_lock_state_loading
-                    else -> R.drawable.vector_lock_state_not_connected
+                            else -> R.drawable.vector_lock_state_not_connected
+                        }
                 }
-            }
-        ),
-        contentDescription = null,
-        modifier = modifier
-            .size(dimensionResource(id = R.dimen.space_240))
+            ),
+            contentDescription = null,
+            modifier = modifier
+                .size(dimensionResource(id = R.dimen.space_240))
 //            .run {
 //                if (lock.isProcessing)
 //                    rotate(rotate)
 //                else this
 //            }
-            .clickable(onClick = onLockClick)
-    )
-}
+                .clickable(onClick = onLockClick)
+        )
+        Image(
+            painter = painterResource(id = R.drawable.vector_lock_state_loading),
+            contentDescription = null,
+            modifier = modifier
+                .size(dimensionResource(id = R.dimen.space_240))
+                .graphicsLayer {
+                    rotationZ = angle
+                }.alpha(if(!isLoading)0f else 1f)
+        )
+    }
 
-private fun String.getLockState(): Int {
-    return if(this == "lock") LockStatus.LOCKED
-    else if(this == "unlock") LockStatus.UNLOCKED
-    else 100
 }
 
 @Composable
@@ -361,6 +374,7 @@ private fun ActionRow(
     onManageClick: (String) -> Unit,
     onUserCodeClick: (String) -> Unit,
     onSettingClick: (String) -> Unit,
+    thingName: String,
     permission: String,
     macAddress: String,
 ) {
@@ -390,7 +404,7 @@ private fun ActionRow(
                 modifier = Modifier.alpha(if (isDisconnected) 0f else 1f)
             )
         ActionButton(
-            onClick = { onSettingClick(macAddress) },
+            onClick = { onSettingClick(thingName) },
             textResId = R.string.toolbar_setting,
             iconResId = R.drawable.ic_setting,
         )
@@ -441,7 +455,8 @@ private fun Preview(@PreviewParameter(LocksPreviewParameterProvider::class) uiSt
             onLockNameChange = { _, _ -> },
             getUpdateTime = { 2 },
             onSaveNameClick = {},
-            networkAvailable = true
+            networkAvailable = true,
+            isLoading = false
         )
     }
 }

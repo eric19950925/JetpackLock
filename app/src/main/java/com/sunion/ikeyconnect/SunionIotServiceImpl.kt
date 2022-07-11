@@ -2,10 +2,7 @@ package com.sunion.ikeyconnect
 
 import com.sunion.ikeyconnect.domain.Interface.RemoteDeviceRepository
 import com.sunion.ikeyconnect.domain.Interface.SunionIotService
-import com.sunion.ikeyconnect.domain.model.sunion_service.DeviceListResponse
-import com.sunion.ikeyconnect.domain.model.sunion_service.DeviceProvisionCreateRequest
-import com.sunion.ikeyconnect.domain.model.sunion_service.DeviceProvisionTicketGetRequest
-import com.sunion.ikeyconnect.domain.model.sunion_service.DeviceProvisionTicketGetResponse
+import com.sunion.ikeyconnect.domain.model.sunion_service.*
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -108,5 +105,9 @@ class SunionIotServiceImpl @Inject constructor(
 
     override suspend fun unlock(thingName: String, clientToken: String) {
         remoteDeviceRepository.unlock(thingName, clientToken)
+    }
+
+    override suspend fun getEvent(thingName: String, timestamp: Int, clientToken: String): EventGetResponse {
+        return remoteDeviceRepository.getEvent(thingName, timestamp, clientToken)
     }
 }

@@ -78,3 +78,23 @@ data class DeviceShadowUpdateLockResponse(
     @SerializedName("clientToken") val clientToken: String,
     @SerializedName("message") val message: String?,
 )
+
+data class EventGetResponse(
+    @SerializedName("clientToken") val clientToken: String?,
+    @SerializedName("LockGeneral") val lockGeneral: LockGeneral?,
+){
+    data class LockGeneral(
+        @SerializedName("Events") val events: List<Events>?,
+    ) {
+        data class Events(
+            @SerializedName("Type") val Type: String,
+            @SerializedName("ExtraDetail") val extraDetail: ExtraDetail?,
+            @SerializedName("Millisecond") val Millisecond: Long,
+        ){
+            data class ExtraDetail(
+                @SerializedName("Actor") val Actor: String?,
+                @SerializedName("Message") val Message: String?,
+            )
+        }
+    }
+}

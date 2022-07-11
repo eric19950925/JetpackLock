@@ -84,7 +84,7 @@ fun AccountScreen(
         )
 
     if (viewModel.isLoading.value)
-        LoadingScreenDialog()
+        LoadingScreenDialog("")
 }
 
 @Composable

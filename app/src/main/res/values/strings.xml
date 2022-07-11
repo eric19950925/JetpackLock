@@ -218,6 +218,7 @@ QR-Code on the lock]]></string>
     <string name="log_type_129"><![CDATA[Incorrect Connection]]></string>
     <string name="log_type_130"><![CDATA[Out of schedule access attempted]]></string>
     <string name="log_type_131"><![CDATA[Invalid Code (Vacation Mode)]]></string>
+    <string name="log_unknown_type"><![CDATA[Unknown Log]]></string>
     <string name="log_today"><![CDATA[Today]]></string>
     <string name="log_yesterday"><![CDATA[Yesterday]]></string>
     <string name="log_unknown_timestamp"><![CDATA[Unknown]]></string>

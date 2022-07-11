@@ -1,6 +1,7 @@
 package com.sunion.ikeyconnect.di
 
 import android.app.Application
+import android.content.Context
 import com.amazonaws.auth.CognitoCachingCredentialsProvider
 import com.amazonaws.mobile.client.AWSMobileClient
 import com.amazonaws.mobile.client.Callback
@@ -14,9 +15,11 @@ import com.sunion.ikeyconnect.add_lock.ProvisionDomain
 import com.sunion.ikeyconnect.api.AccountAPI
 import com.sunion.ikeyconnect.api.AuthInterceptor
 import com.sunion.ikeyconnect.api.DeviceAPI
+import com.sunion.ikeyconnect.api.ErrorInterceptor
 import com.sunion.ikeyconnect.domain.Interface.AuthRepository
 import com.sunion.ikeyconnect.domain.Interface.RemoteDeviceRepository
 import com.sunion.ikeyconnect.domain.Interface.SunionIotService
+import com.sunion.ikeyconnect.domain.exception.ToastHttpException
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -36,6 +39,13 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 @Module(includes = [AppModule.Bind::class])
 object AppModule {
+
+    @Provides
+    @Singleton
+    fun provideContext(application: Application): Context {
+        return application.applicationContext
+    }
+
     @Provides
     @Singleton
     @ExperimentalCoroutinesApi
@@ -54,7 +64,11 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(awsMobileClient: AWSMobileClient): OkHttpClient {
+    fun provideToastHttpException(context: Context) = ToastHttpException(context)
+
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(awsMobileClient: AWSMobileClient, toastHttpException: ToastHttpException): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.HEADERS
             level = HttpLoggingInterceptor.Level.BODY
@@ -62,6 +76,7 @@ object AppModule {
         return OkHttpClient.Builder()
             .addInterceptor(loggingInterceptor)
             .addInterceptor(AuthInterceptor(awsMobileClient))
+            .addInterceptor(ErrorInterceptor(toastHttpException))
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(10, TimeUnit.SECONDS)
             .build()

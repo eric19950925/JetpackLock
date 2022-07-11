@@ -15,6 +15,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 @HiltViewModel
@@ -25,7 +26,10 @@ class SecurityViewModel @Inject constructor(
     private val verifyPasswordStrength: VerifyPasswordStrengthUseCase,
     private val changePassword: ChangePasswordUseCase
 ) : ViewModel() {
-
+    override fun onCleared() {
+        super.onCleared()
+        Timber.tag("SecurityViewModel").d("onCleared")
+    }
     private val _isLoading = mutableStateOf(false)
     val isLoading: State<Boolean> = _isLoading
 

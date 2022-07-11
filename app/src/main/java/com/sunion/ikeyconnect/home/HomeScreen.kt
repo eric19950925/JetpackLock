@@ -20,6 +20,7 @@ import com.google.accompanist.pager.rememberPagerState
 import com.sunion.ikeyconnect.R
 import com.sunion.ikeyconnect.home.component.Empty
 import com.sunion.ikeyconnect.home.component.Locks
+import com.sunion.ikeyconnect.ui.component.LoadingScreenDialog
 import com.sunion.ikeyconnect.ui.theme.FuhsingSmartLockV2AndroidTheme
 import kotlinx.coroutines.launch
 
@@ -124,7 +125,7 @@ fun HomeScreen(
         Box(modifier = Modifier
             .fillMaxSize()
             .background(Color.White), contentAlignment = Alignment.Center) {
-            if (state.locks.isEmpty())
+            if (state.locks.isEmpty() && !state.isLoading)
                 Empty(modifier = Modifier.align(Alignment.Center))
             else
                 Locks(
@@ -139,6 +140,7 @@ fun HomeScreen(
                     getUpdateTime = getUpdateTime,
                     onSaveNameClick = onSaveNameClick,
                     networkAvailable = state.networkAvailable,
+                    isLoading = state.isLockLoading
                 )
         }
 
@@ -146,6 +148,9 @@ fun HomeScreen(
 
     if (state.showGuide)
         HomeGuideScreen(modifier = Modifier.clickable(onClick = onShowGuideClick))
+
+    if (state.isLoading)
+        LoadingScreenDialog(state.loadingMessage)
 }
 
 @Preview

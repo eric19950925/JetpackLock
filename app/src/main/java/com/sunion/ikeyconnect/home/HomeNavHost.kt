@@ -11,6 +11,7 @@ import com.sunion.ikeyconnect.account_management.memberGraph
 import com.sunion.ikeyconnect.add_lock.addLockGraph
 import com.sunion.ikeyconnect.settings.SettingsScreen
 import com.sunion.ikeyconnect.settings.SettingsViewModel
+import com.sunion.ikeyconnect.settings.settingGraph
 
 @Composable
 fun HomeNavHost(viewModel: HomeViewModel, onLogoutClick: () -> Unit) {
@@ -33,14 +34,18 @@ fun HomeNavHost(viewModel: HomeViewModel, onLogoutClick: () -> Unit) {
             route = HomeRoute.AddLock.route,
             onAddLockFinish = viewModel::boltOrientation
         )
-        composable("${HomeRoute.Settings.route}/{macAddress}/{isConnected}") { backStackEntry ->
-            val macAddress = backStackEntry.arguments?.getString("macAddress") ?: ""
-            val isConnected =
-                backStackEntry.arguments?.getString("isConnected")?.toBoolean() ?: false
-            val settingsViewModel = hiltViewModel<SettingsViewModel>()
-            settingsViewModel.macAddress ?: settingsViewModel.init(macAddress, isConnected)
-            SettingsScreen(viewModel = settingsViewModel, navController = navController)
-        }
+        settingGraph(
+            navController = navController,
+            route = "${HomeRoute.Settings.route}/{macAddress}/{isConnected}",
+        )
+//        composable("${HomeRoute.Settings.route}/{macAddress}/{isConnected}") { backStackEntry ->
+//            val macAddress = backStackEntry.arguments?.getString("macAddress") ?: ""
+//            val isConnected =
+//                backStackEntry.arguments?.getString("isConnected")?.toBoolean() ?: false
+//            val settingsViewModel = hiltViewModel<SettingsViewModel>()
+//            settingsViewModel.macAddress ?: settingsViewModel.init(macAddress, isConnected)
+//            SettingsScreen(viewModel = settingsViewModel, navController = navController)
+//        }
     }
 }
 

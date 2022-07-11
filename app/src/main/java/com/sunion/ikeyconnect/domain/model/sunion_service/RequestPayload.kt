@@ -118,3 +118,14 @@ data class DeviceShadowUpdateRunCheckRequest(
 //        @SerializedName("Searchable") val searchable: Int,
     )
 }
+
+data class EventGetRequest(
+    @SerializedName("DeviceIdentity") val DeviceIdentity: String,
+    @SerializedName("Filter") val filter: Filter,
+    @SerializedName("clientToken") val clientToken: String,
+) {
+    data class Filter(
+        @SerializedName("TimePoint") val TimePoint: Int,
+        @SerializedName("Maximum") val Maximum: Int,
+    )
+}

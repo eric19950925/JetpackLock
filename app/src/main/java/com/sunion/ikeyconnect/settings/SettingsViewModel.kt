@@ -7,6 +7,7 @@ import com.sunion.ikeyconnect.domain.Interface.Lock
 import com.sunion.ikeyconnect.domain.Interface.SunionIotService
 import com.sunion.ikeyconnect.domain.model.*
 import com.sunion.ikeyconnect.domain.usecase.account.GetClientTokenUseCase
+import com.sunion.ikeyconnect.domain.usecase.account.GetUuidUseCase
 import com.sunion.ikeyconnect.lock.WifiLock
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -21,8 +22,14 @@ class SettingsViewModel @Inject constructor(
     private val getClientTokenUseCase: GetClientTokenUseCase,
     private val lockProvider: LockProvider,
     private val iotService: SunionIotService,
+    private val getUuid: GetUuidUseCase,
 ) :
     ViewModel() {
+
+    override fun onCleared() {
+        super.onCleared()
+        Timber.tag("SettingsViewModel").d("onCleared")
+    }
 
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState
@@ -30,40 +37,50 @@ class SettingsViewModel @Inject constructor(
     private val _uiEvent = MutableSharedFlow<SettingsUiEvent>()
     val uiEvent: SharedFlow<SettingsUiEvent> = _uiEvent
 
-    private var _macAddress: String? = null
-    val macAddress: String?
-        get() = _macAddress
+    private var _macAddressOrThingName: String? = null
+    val macAddressOrThingName: String?
+        get() = _macAddressOrThingName
 
     private var _isConnected: Boolean = false
     val isConnected: Boolean
         get() = _isConnected
 
-    fun init(macAddress: String, isConnected: Boolean) {
-        _macAddress = macAddress
+    fun init(macAddressOrThingName: String, isConnected: Boolean) {
+        _macAddressOrThingName = macAddressOrThingName
         _isConnected = isConnected
+        _uiState.update { it.copy(macAddressOrThingName = macAddressOrThingName)}
+        Timber.d("$macAddressOrThingName , $isConnected")
 
-//        flow { emit(iotService.getDeviceList("","")) }
-//            .flowOn(Dispatchers.IO)
-//            .flatMapConcat { it.filter { it.attributes.bluetooth.mACAddress == macAddress }.asFlow() }
-//            .map {
-//                val wifilock = WiFiLock(
-//                    ThingName = it.thingName,
-//                    Attributes = DeviceAttributes(
-//                        DeviceBleInfo(
-//                            it.attributes.bluetooth.broadcastName,
-//                            it.attributes.bluetooth.connectionKey,
-//                            it.attributes.bluetooth.mACAddress,
-//                            it.attributes.bluetooth.shareToken,
-//                        ),
-//                        it.attributes.deviceName,
-//                        it.attributes.syncing,
-//                        it.attributes.vacationMode
-//                    ),
-//                    LockState = Reported(0,0,0,0,0,"","unknown",0,false)
-//                )
-//                wifilock
-//            }
-//
+        flow { emit(iotService.getDeviceList(getUuid.invoke())) }
+            .flowOn(Dispatchers.IO)
+            .map {
+                it.find { it.thingName == macAddressOrThingName }?:throw Exception("Not found thing")
+            }
+            .map {
+                val wifilock = WiFiLock(
+                    ThingName = it.thingName,
+                    Attributes = DeviceAttributes(
+                        DeviceBleInfo(
+                            it.attributes.bluetooth.broadcastName,
+                            it.attributes.bluetooth.connectionKey,
+                            it.attributes.bluetooth.mACAddress,
+                            it.attributes.bluetooth.shareToken,
+                        ),
+                        it.attributes.deviceName,
+                        it.attributes.syncing,
+                        it.attributes.vacationMode
+                    ),
+                    LockState = Reported(0,0,0,0,0,"","unknown",0,false)
+                )
+                wifilock
+                _uiState.update { state -> state.copy(wifiLock = wifilock) }
+            }
+            .onStart { _uiState.update { it.copy(isLoading = true) } }
+            .onCompletion { _uiState.update { it.copy(isLoading = false) } }
+            .catch { e ->
+                Timber.e(e)
+            }.launchIn(viewModelScope)
+
 
     }
 
@@ -73,7 +90,7 @@ class SettingsViewModel @Inject constructor(
 
     @OptIn(FlowPreview::class)
     fun executeDelete() {
-        val macAddress = macAddress ?: return
+        val macAddress = macAddressOrThingName ?: return
         var lock: Lock? = null
         flow { emit(lockProvider.getLockByMacAddress(macAddress)!!) }
             .flatMapConcat { inLock ->
@@ -128,7 +145,21 @@ class SettingsViewModel @Inject constructor(
 data class SettingsUiState(
     val showDeleteConfirmDialog: Boolean = false,
     val isLoading: Boolean = false,
-    val lockBattery: Int = 0,
+    val macAddressOrThingName: String = "",
+    val wifiLock: WiFiLock = WiFiLock(
+        ThingName = "",
+        Attributes = DeviceAttributes(
+            DeviceBleInfo(
+                "",
+                "",
+                "",
+                "",
+            ),
+            "",
+            false,
+            false
+        ),
+        LockState = Reported(0,0,0,0,0,"","unknown",0,false),)
 )
 
 sealed class SettingsUiEvent {

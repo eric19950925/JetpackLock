@@ -13,12 +13,14 @@ import com.sunion.ikeyconnect.add_lock.ProvisionDomain
 import com.sunion.ikeyconnect.api.APIObject
 import com.sunion.ikeyconnect.data.PreferenceStore
 import com.sunion.ikeyconnect.domain.Interface.SunionIotService
+import com.sunion.ikeyconnect.domain.exception.ToastHttpException
 import com.sunion.ikeyconnect.domain.model.*
 import com.sunion.ikeyconnect.domain.usecase.account.GetIdTokenUseCase
 import com.sunion.ikeyconnect.domain.usecase.account.GetIdentityIdUseCase
 import com.sunion.ikeyconnect.domain.usecase.account.GetUuidUseCase
 import com.sunion.ikeyconnect.domain.usecase.device.CollectWIfiStateUseCase
 import com.sunion.ikeyconnect.domain.usecase.device.IsNetworkConnectedUseCase
+import com.sunion.ikeyconnect.getLockState
 import com.sunion.ikeyconnect.optNullableString
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.*
@@ -41,6 +43,7 @@ class HomeViewModel @Inject constructor(
     private val collectWIfiState: CollectWIfiStateUseCase,
     private val getUuid: GetUuidUseCase,
     private val provisionDomain: ProvisionDomain,
+    private val toastHttpException: ToastHttpException,
     ) :
     ViewModel() {
 
@@ -52,6 +55,9 @@ class HomeViewModel @Inject constructor(
 
     private val lockDevices = mutableStateListOf<WiFiLock>()
     private var currentIndex = 0
+    private var previousDeadbolt = LockStatus.LOCKED
+
+    private var homePageListScope = CoroutineScope(Dispatchers.IO)
 
     private val changeNameJobs: MutableMap<String, Job> = mutableMapOf()
     private val updateTimes: MutableMap<String, LocalDateTime> = mutableMapOf()
@@ -64,7 +70,10 @@ class HomeViewModel @Inject constructor(
 
     private val _devicesFromMqtt = MutableSharedFlow<MutableList<WiFiLock>?>()
     private val devicesFromMqtt: SharedFlow<MutableList<WiFiLock>?> = _devicesFromMqtt
-
+    override fun onCleared() {
+        super.onCleared()
+        Timber.tag("HomeViewModel").d("onCleared")
+    }
 
     init {
         _uiState.update { it.copy(showGuide = !preferenceStore.isGuidePopupMenuPressed) }
@@ -93,7 +102,17 @@ class HomeViewModel @Inject constructor(
                 Timber.d(it.toString())
                 when(it){
 //                    loadLocks()
-                    ConnectMqttUiEvent.Prepared -> mqttStatefulConnection.connectMqtt()
+                    ConnectMqttUiEvent.Prepared -> {
+                        mqttStatefulConnection.connectMqtt()
+                        _uiState.update { it.copy(isLoading = true) }
+                        homePageListScope.launch{
+                            delay(60000)
+                            _uiState.update { it.copy(isLoading = false) }
+                            subDeviceList()
+                            homePageListScope.cancel()
+                        }
+                        _uiState.update { it.copy(loadingMessage = "Mqtt Connecting...") }
+                    }
                     ConnectMqttUiEvent.Connected -> subDeviceList()
                     ConnectMqttUiEvent.ConnectionLost -> disconnectDeviceList()
                     ConnectMqttUiEvent.Reconnecting -> disconnectDeviceList()
@@ -228,7 +247,10 @@ class HomeViewModel @Inject constructor(
 
     private fun callbackMqttUpdateThingShadow(thingName: String) = AWSIotMqttNewMessageCallback { _: String?, data: ByteArray? ->
         try {
+            homePageListScope.cancel()
+
             val message = String(data?:return@AWSIotMqttNewMessageCallback, Charsets.UTF_8)
+            Timber.d("UpdateThingcallback: $message")
             val jsonObject = JSONTokener(message).nextValue() as JSONObject
             val current = jsonObject.getJSONObject("current")
             val callback_clientToken = jsonObject.optNullableString("clientToken")?:"device"
@@ -263,6 +285,9 @@ class HomeViewModel @Inject constructor(
                 }
                 else it.copy(locks = lockDevices)
             }
+            _uiState.update { it.copy(isLoading = false) }
+            if(lockDevices[index].LockState.Deadbolt.getLockState() != previousDeadbolt || !lockDevices[index].LockState.Connected)
+                _uiState.update { it.copy(isLockLoading = false) }
         }
     }
 
@@ -281,26 +306,44 @@ class HomeViewModel @Inject constructor(
     }
 
     fun isConnected(macAddress: String): Boolean =
-        uiState.value.locks.find { it.Attributes.Bluetooth.MACAddress == macAddress }?.LockState?.Connected ?: false
+        uiState.value.locks.find { it.ThingName == macAddress }?.LockState?.Connected ?: false
+//        uiState.value.locks.find { it.Attributes.Bluetooth.MACAddress == macAddress }?.LockState?.Connected ?: false
 
     fun onLockClick() {
         val lock = lockDevices[currentIndex]
-
+        previousDeadbolt = lock.LockState.Deadbolt.getLockState()
         //if is loading return
 
-        if(!lock.LockState.Connected)return
+        if(!lock.LockState.Connected || uiState.value.isLockLoading)return
 
-        getIdToken()
-            .map { idToken ->
-                if(lock.LockState.Direction == "unknown"){
-                    iotService.checkOrientation(lock.ThingName, getUuid.invoke())
-                }else {
-                    if(lock.LockState.Deadbolt == "unlock")iotService.lock(lock.ThingName, getUuid.invoke())
-                    else iotService.unlock(lock.ThingName, getUuid.invoke())
+        _uiState.update { it.copy(isLockLoading = true) }
+
+
+        if(lock.LockState.Direction == "unknown"){
+            flow { emit(iotService.checkOrientation(lock.ThingName, getUuid.invoke())) }
+                .catch { e ->
+                    toastHttpException(e)
                 }
-            }.flowOn(Dispatchers.IO)
-            .catch { Timber.e(it) }
-            .launchIn(viewModelScope)
+                .flowOn(Dispatchers.IO)
+                .launchIn(viewModelScope)
+        }else {
+            if (lock.LockState.Deadbolt == "unlock") {
+                flow { emit(iotService.lock(lock.ThingName,getUuid.invoke())) }
+                    .catch { e ->
+                        toastHttpException(e)
+                    }
+                    .flowOn(Dispatchers.IO)
+                    .launchIn(viewModelScope)
+            }
+            else {
+                flow { emit(iotService.unlock(lock.ThingName,getUuid.invoke())) }
+                    .catch { e ->
+                        toastHttpException(e)
+                    }
+                    .flowOn(Dispatchers.IO)
+                    .launchIn(viewModelScope)
+            }
+        }
     }
 
     /**
@@ -317,7 +360,7 @@ class HomeViewModel @Inject constructor(
                     Status = wiFiLock.LockState.Status,
                     RegistryVersion = wiFiLock.LockState.RegistryVersion,
                     AccessCodeTime = wiFiLock.LockState.AccessCodeTime,
-                    Deadbolt = "disconnect network",
+                    Deadbolt = "disconnect",
                     Searchable = wiFiLock.LockState.Searchable,
                     Direction = wiFiLock.LockState.Direction,
                     Connected = false,
@@ -331,6 +374,7 @@ class HomeViewModel @Inject constructor(
                     })
                 } else it.copy(locks = lockDevices)
             }
+            _uiState.update { it.copy(isLockLoading = false) }
         }
 
     }
@@ -463,6 +507,9 @@ class HomeViewModel @Inject constructor(
 
 data class HomeUiState(
     val showGuide: Boolean = false,
+    val isLoading: Boolean = false,
+    val isLockLoading: Boolean = false,
+    val loadingMessage: String = "loading ...",
     val locks: MutableList<WiFiLock> = mutableStateListOf(),
     val currentPage: Int = 0,
     val networkAvailable: Boolean = false,

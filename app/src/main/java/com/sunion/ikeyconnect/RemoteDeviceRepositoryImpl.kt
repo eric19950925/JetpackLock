@@ -121,4 +121,17 @@ class RemoteDeviceRepositoryImpl @Inject constructor(
             clientToken = clientToken)
         )
     }
+
+    override suspend fun getEvent(thingName: String, timestamp: Int, clientToken: String): EventGetResponse {
+        return deviceAPI.eventGet(
+            EventGetRequest(
+                DeviceIdentity = thingName,
+                filter = EventGetRequest.Filter(
+                    TimePoint = timestamp,
+                    Maximum = 100
+                ),
+                clientToken = clientToken
+            )
+        )
+    }
 }
