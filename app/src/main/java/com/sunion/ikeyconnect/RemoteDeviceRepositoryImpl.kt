@@ -3,6 +3,7 @@ package com.sunion.ikeyconnect
 import com.sunion.ikeyconnect.api.DeviceAPI
 import com.sunion.ikeyconnect.domain.Interface.RemoteDeviceRepository
 import com.sunion.ikeyconnect.domain.model.sunion_service.*
+import com.sunion.ikeyconnect.domain.model.sunion_service.payload.*
 import java.util.*
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -60,6 +61,7 @@ class RemoteDeviceRepositoryImpl @Inject constructor(
     override suspend fun updateAdminCode(
         thingName: String,
         adminCode: String,
+        oldCode: String,
         clientToken: String
     ): DeviceUpdateResponse = deviceAPI.deviceAccessCodeUpdate(
         DeviceAccessCodeUpdateRequest(
@@ -69,9 +71,10 @@ class RemoteDeviceRepositoryImpl @Inject constructor(
                 DeviceAccessCodeUpdateRequest.AccessCode(
                     name = "CreateAdmin",
                     newCode = adminCode,
+                    oldCode = oldCode,
                     attributes = DeviceAccessCodeUpdateRequest.AccessCode.Attributes(
                         notifyWhenUse = true,
-                        rule = listOf(DeviceAccessCodeUpdateRequest.AccessCode.Attributes.Rule("A"))
+                        rule = listOf(DeviceAccessCodeUpdateResponse.AccessCode.Attributes.Rule("A",null))
                     )
                 )
             ),
@@ -134,4 +137,191 @@ class RemoteDeviceRepositoryImpl @Inject constructor(
             )
         )
     }
+
+    override suspend fun getRegistry(thingName: String, clientToken: String): RegistryGetResponse {
+        return deviceAPI.deviceRegistryGet(
+            RegistryGetRequest(
+                DeviceIdentity = thingName,
+                filter = RegistryGetRequest.Filter(
+                    attribute = listOf(
+                        "WiFi",
+                        "Bluetooth",
+                        "Timezone",
+                        "DeviceName",
+                        "AutoLock",
+                        "AutoLockDelay",
+                        "StatusNotification",
+                        "VacationMode",
+                        "KeyPressBeep",
+                        "OfflineNotifiy",
+                        "Preamble",
+                        "SecureMode",
+                        "Syncing",
+                        "Model",
+                        "FirmwareVersion"
+                    ),
+                    group = false
+                ),
+                clientToken = clientToken
+            )
+        )
+    }
+
+    override suspend fun updateDeviceRegistry(
+        thingName: String,
+        registryAttributes: RegistryGetResponse.RegistryPayload.RegistryAttributes,
+        clientToken: String
+    ): DeviceUpdateResponse {
+        return deviceAPI.deviceRegistryUpdate(
+            DeviceRegistryUpdateSettingRequest(
+                deviceIdentity = thingName,
+                payload = DeviceRegistryUpdateSettingRequest.Payload(
+                    attributes = DeviceRegistryUpdateSettingRequest.Payload.Attributes(
+                        autoLock = registryAttributes.autoLock,
+                        autoLockDelay = registryAttributes.autoLockDelay,
+                        keyPressBeep = registryAttributes.keyPressBeep,
+                        scureMode = registryAttributes.secureMode,
+                        preamble = registryAttributes.preamble,
+                        vacationMode = registryAttributes.vacationMode,
+                    )
+                ),
+                clientToken = clientToken
+            )
+        )
+
+    }
+
+    override suspend fun updateWiFiSetting(
+        thingName: String,
+        clientToken: String
+    ): DeviceUpdateResponse {
+        TODO("Not yet implemented")
+
+    }
+
+    override suspend fun updateAutoLock(
+        thingName: String,
+        enable: Boolean,
+        delay: Int,
+        clientToken: String
+    ): DeviceUpdateResponse {
+        return deviceAPI.deviceRegistryUpdate(
+            DeviceRegistryUpdateAutoLockRequest(
+                deviceIdentity = thingName,
+                payload = DeviceRegistryUpdateAutoLockRequest.Payload(
+                    attributes = DeviceRegistryUpdateAutoLockRequest.Payload.Attributes(autoLock = enable, autoLockDelay = delay)
+                ),
+                clientToken = clientToken
+            )
+        )
+    }
+
+    override suspend fun updateAutoLockDelay(
+        thingName: String,
+        clientToken: String
+    ): DeviceUpdateResponse {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun updateStatusNotification(
+        thingName: String,
+        clientToken: String
+    ): DeviceUpdateResponse {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun updateVacationMode(
+        thingName: String,
+        enable: Boolean,
+        clientToken: String
+    ): DeviceUpdateResponse {
+        return deviceAPI.deviceRegistryUpdate(
+            DeviceRegistryUpdateVacationRequest(
+                deviceIdentity = thingName,
+                payload = DeviceRegistryUpdateVacationRequest.Payload(
+                    attributes = DeviceRegistryUpdateVacationRequest.Payload.Attributes(vacationMode = enable)
+                ),
+                clientToken = clientToken
+            )
+        )
+    }
+
+    override suspend fun updateKeyPressBeep(
+        thingName: String,
+        enable: Boolean,
+        clientToken: String
+    ): DeviceUpdateResponse {
+        return deviceAPI.deviceRegistryUpdate(
+            DeviceRegistryUpdateKeyPressBeepRequest(
+                deviceIdentity = thingName,
+                payload = DeviceRegistryUpdateKeyPressBeepRequest.Payload(
+                    attributes = DeviceRegistryUpdateKeyPressBeepRequest.Payload.Attributes(keyPressBeep = enable)
+                ),
+                clientToken = clientToken
+            )
+        )
+    }
+
+    override suspend fun updateOfflineNotifiy(
+        thingName: String,
+        clientToken: String
+    ): DeviceUpdateResponse {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun updatePreamble(
+        thingName: String,
+        enable: Boolean,
+        clientToken: String
+    ): DeviceUpdateResponse {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun updateSecureMode(
+        thingName: String,
+        enable: Boolean,
+        clientToken: String
+    ): DeviceUpdateResponse {
+        return deviceAPI.deviceRegistryUpdate(
+            DeviceRegistryUpdateSecureModeRequest(
+                deviceIdentity = thingName,
+                payload = DeviceRegistryUpdateSecureModeRequest.Payload(
+                    attributes = DeviceRegistryUpdateSecureModeRequest.Payload.Attributes(scureMode = enable)
+                ),
+                clientToken = clientToken
+            )
+        )
+    }
+
+    override suspend fun updateSyncing(
+        thingName: String,
+        clientToken: String
+    ): DeviceUpdateResponse {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun getAdminCode(
+        thingName: String,
+        clientToken: String
+    ): DeviceAccessCodeGetResponse{
+        return deviceAPI.deviceAccessCodeGet(
+            DeviceAccessCodeGetRequest(
+                deviceIdentity = thingName,
+                filter = DeviceAccessCodeGetRequest.Filter(
+                    codeType = "AdminCode",
+                    count = 1,
+                    attributes = listOf(
+                        "NotifyWhenUse",
+                        "Rule",
+                        "Name",
+                        "Code",
+                        "Timestamp"),
+                    offset = 0,
+                    code = null,
+                ),
+                clientToken = clientToken
+            )
+        )
+    }
+
 }

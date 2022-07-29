@@ -37,7 +37,7 @@ fun getFirmwareModelUrl(nameId: Int) = when(nameId){
 
 fun getFirmwareModelUrlByString(name: String) = when(name){
     "KD0" -> "https://www.ikey-lock.com/FAQ/KD0.html"
-    "KDW00" -> "https://www.ikey-lock.com/FAQ/KD0.html"
+    "KDW00" -> "https://www.ikey-lock.com/FAQ/KDW00.html"
     "KL0" -> "https://www.ikey-lock.com/FAQ/KL0.html"
     "TD0" -> "https://www.ikey-lock.com/FAQ/TD0.html"
     "TL0" -> "https://www.ikey-lock.com/FAQ/TL0.html"

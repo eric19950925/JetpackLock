@@ -47,7 +47,7 @@ data class Reported (
     val Rssi: Int,
     val Status: Int,
     val RegistryVersion: Int,
-    val AccessCodeTime: Int,
+    val AccessCodeTime: Long,
     val Deadbolt: String,
     val Direction: String,
     val Searchable: Int,

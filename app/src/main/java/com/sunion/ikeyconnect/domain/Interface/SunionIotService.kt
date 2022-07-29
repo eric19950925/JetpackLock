@@ -2,9 +2,10 @@ package com.sunion.ikeyconnect.domain.Interface
 
 import com.sunion.ikeyconnect.domain.model.sunion_service.DeviceListResponse
 import com.sunion.ikeyconnect.domain.model.sunion_service.DeviceProvisionTicketGetResponse
+import com.sunion.ikeyconnect.domain.model.sunion_service.DeviceUpdateResponse
 import com.sunion.ikeyconnect.domain.model.sunion_service.EventGetResponse
-import com.sunion.ikeyconnect.domain.usecase.account.GetIdentityIdUseCase
-import java.sql.Timestamp
+import com.sunion.ikeyconnect.domain.model.sunion_service.payload.DeviceAccessCodeGetResponse
+import com.sunion.ikeyconnect.domain.model.sunion_service.payload.RegistryGetResponse
 
 
 interface SunionIotService {
@@ -30,18 +31,9 @@ interface SunionIotService {
         clientToken: String,
     )
 
-    suspend fun updateTimezone(
-        thingName: String,
-        timezone: String,
-        clientToken: String,
-    )
+    suspend fun updateTimezone(thingName: String, timezone: String, clientToken: String)
 
-    suspend fun updateAdminCode(
-        thingName: String,
-        adminCode: String,
-        timezone: String,
-        clientToken: String,
-    )
+    suspend fun updateAdminCode(thingName: String, adminCode: String, oldCode: String, clientToken: String)
 
     suspend fun delete(thingName: String, clientToken: String)
 
@@ -52,4 +44,30 @@ interface SunionIotService {
     suspend fun unlock(thingName: String, clientToken: String)
 
     suspend fun getEvent(thingName: String, timestamp: Int, clientToken: String): EventGetResponse
+
+    suspend fun getDeviceRegistry(thingName: String, clientToken: String): RegistryGetResponse
+
+    suspend fun updateDeviceRegistry(thingName: String, registryAttributes: RegistryGetResponse.RegistryPayload.RegistryAttributes, clientToken: String): DeviceUpdateResponse
+
+    suspend fun updateWiFiSetting(thingName: String, clientToken: String): DeviceUpdateResponse
+
+    suspend fun updateAutoLock(thingName: String, enable: Boolean, delay: Int, clientToken: String): DeviceUpdateResponse
+
+    suspend fun updateAutoLockDelay(thingName: String, clientToken: String): DeviceUpdateResponse
+
+    suspend fun updateStatusNotification(thingName: String, clientToken: String): DeviceUpdateResponse
+
+    suspend fun updateVacationMode(thingName: String, enable: Boolean, clientToken: String): DeviceUpdateResponse
+
+    suspend fun updateKeyPressBeep(thingName: String, enable: Boolean, clientToken: String): DeviceUpdateResponse
+
+    suspend fun updateOfflineNotifiy(thingName: String, clientToken: String): DeviceUpdateResponse
+
+    suspend fun updatePreamble(thingName: String, enable: Boolean, clientToken: String): DeviceUpdateResponse
+
+    suspend fun updateSecureMode(thingName: String, enable: Boolean, clientToken: String): DeviceUpdateResponse
+
+    suspend fun updateSyncing(thingName: String, clientToken: String): DeviceUpdateResponse
+
+    suspend fun getAdminCode(thingName: String, clientToken: String): DeviceAccessCodeGetResponse
 }

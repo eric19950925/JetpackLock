@@ -6,4 +6,8 @@
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:navigationBarColor">@color/white</item>
     </style>
+    <style name="ThemeOverlay.NumberPicker" parent="" >
+        <item name="colorControlNormal">@color/primary</item>
+        <item name="android:editTextColor">@color/primary</item>
+    </style>
 </resources>

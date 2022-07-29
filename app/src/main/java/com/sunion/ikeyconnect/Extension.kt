@@ -4,6 +4,7 @@ import android.text.format.DateUtils
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import com.sunion.ikeyconnect.domain.model.LockStatus
+import com.sunion.ikeyconnect.home.HomeViewModel
 import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.*
@@ -19,6 +20,23 @@ fun JSONObject.optNullableString(name: String, fallback: String? = null) : Strin
         this.getString(name)
     } else {
         fallback
+    }
+}
+
+fun JSONObject.optNullableJSONObject(name: String, fallback: JSONObject? = null) : JSONObject? {
+    return if (this.has(name) && !this.isNull(name)) {
+        this.getJSONObject(name)
+    } else {
+        fallback
+    }
+}
+
+fun mapDeviceType(deviceType: String): Int {
+    return when(deviceType){
+        "wifi" -> HomeViewModel.DeviceType.WiFi.typeNum
+        "ble" -> HomeViewModel.DeviceType.Ble.typeNum
+        "ble mode" -> HomeViewModel.DeviceType.BleMode.typeNum
+        else -> 0
     }
 }
 

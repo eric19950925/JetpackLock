@@ -2,48 +2,6 @@ package com.sunion.ikeyconnect.domain.model.sunion_service
 
 import com.google.gson.annotations.SerializedName
 
-open class DeviceRegistryUpdateRequest(
-    @SerializedName("DeviceIdentity") open val deviceIdentity: String,
-    @SerializedName("Payload") open val payload: DeviceRegistryRequestPayload,
-    @SerializedName("clientToken") open val clientToken: String,
-)
-
-open class DeviceRegistryRequestPayload
-
-
-data class DeviceRegistryUpdateNameRequest(
-    @Transient @SerializedName("DeviceIdentity") override val deviceIdentity: String,
-    @Transient @SerializedName("Payload") override val payload: Payload,
-    @Transient @SerializedName("clientToken") override val clientToken: String,
-) : DeviceRegistryUpdateRequest(deviceIdentity, payload, clientToken) {
-    data class Payload(
-        @SerializedName("Attributes") val attributes: Attributes,
-    ) : DeviceRegistryRequestPayload() {
-        data class Attributes(
-            @SerializedName("DeviceName") val deviceName: String,
-        )
-    }
-}
-
-data class DeviceRegistryUpdateTimezoneRequest(
-    @Transient @SerializedName("DeviceIdentity") override val deviceIdentity: String,
-    @Transient @SerializedName("Payload") override val payload: Payload,
-    @Transient @SerializedName("clientToken") override val clientToken: String,
-) : DeviceRegistryUpdateRequest(deviceIdentity, payload, clientToken) {
-    data class Payload(
-        @SerializedName("Attributes") val attributes: Attributes,
-    ) : DeviceRegistryRequestPayload() {
-        data class Attributes(
-            @SerializedName("Timezone") val timezone: Timezone,
-        ) {
-            data class Timezone(
-                @SerializedName("ShortName") val shortName: String,
-                @SerializedName("Offset") val offset: Int,
-            )
-        }
-    }
-}
-
 data class DeviceProvisionCreateRequest(
     @SerializedName("ApplicationID") val applicationID: String,
     @SerializedName("Model") val model: String,
@@ -57,28 +15,6 @@ data class DeviceProvisionCreateRequest(
         @SerializedName("ShortName") val shortName: String,
         @SerializedName("Offset") val offset: Int,
     )
-}
-
-data class DeviceAccessCodeUpdateRequest(
-    @SerializedName("DeviceIdentity") val deviceIdentity: String,
-    @SerializedName("CodeType") val codeType: String,
-    @SerializedName("AccessCode") val accessCode: List<AccessCode>,
-    @SerializedName("clientToken") val clientToken: String,
-) {
-    data class AccessCode(
-        @SerializedName("Name") val name: String,
-        @SerializedName("NewCode") val newCode: String,
-        @SerializedName("Attributes") val attributes: Attributes,
-    ) {
-        data class Attributes(
-            @SerializedName("NotifyWhenUse") val notifyWhenUse: Boolean,
-            @SerializedName("Rule") val rule: List<Rule>,
-        ) {
-            data class Rule(
-                @SerializedName("Type") val type: String,
-            )
-        }
-    }
 }
 
 data class DeviceProvisionTicketGetRequest(
@@ -120,6 +56,17 @@ data class DeviceShadowUpdateRunCheckRequest(
 }
 
 data class EventGetRequest(
+    @SerializedName("DeviceIdentity") val DeviceIdentity: String,
+    @SerializedName("Filter") val filter: Filter,
+    @SerializedName("clientToken") val clientToken: String,
+) {
+    data class Filter(
+        @SerializedName("TimePoint") val TimePoint: Int,
+        @SerializedName("Maximum") val Maximum: Int,
+    )
+}
+
+data class UserSyncGetRequest(
     @SerializedName("DeviceIdentity") val DeviceIdentity: String,
     @SerializedName("Filter") val filter: Filter,
     @SerializedName("clientToken") val clientToken: String,

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/space_86">
+
+    <Button
+        android:id="@+id/bt_drag_indicator"
+        android:layout_width="@dimen/space_24"
+        android:layout_height="@dimen/space_24"
+        android:layout_marginStart="@dimen/space_32"
+        android:background="@drawable/ic_drag_handle"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/tv_lock_description"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/space_24"
+        android:textSize="@dimen/txt_helper"
+        android:visibility="gone"
+        android:textColor="@color/primaryVariant"
+        app:layout_constraintBottom_toTopOf="@+id/tv_lock_display_name"
+        app:layout_constraintLeft_toRightOf="@+id/bt_drag_indicator"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:text="KD-50L-PC-2020.09.26" />
+
+    <TextView
+        android:id="@+id/tv_lock_display_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@color/primary"
+        android:layout_marginStart="@dimen/space_18"
+        android:textSize="@dimen/txt_large"
+        app:layout_constraintBottom_toBottomOf="@+id/bt_drag_indicator"
+        app:layout_constraintLeft_toLeftOf="@+id/tv_lock_description"
+        app:layout_constraintLeft_toRightOf="@+id/bt_drag_indicator"
+        app:layout_constraintTop_toTopOf="@+id/bt_drag_indicator"
+        tools:text="台灣福興後門鎖" />
+
+    <View
+        android:id="@+id/divider"
+        android:background="@color/divider"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/space_2"
+        app:layout_constraintBottom_toBottomOf="parent"/>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

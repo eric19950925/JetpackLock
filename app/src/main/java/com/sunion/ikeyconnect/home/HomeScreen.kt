@@ -1,5 +1,6 @@
 package com.sunion.ikeyconnect.home
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -18,6 +19,7 @@ import androidx.navigation.NavController
 import com.google.accompanist.pager.ExperimentalPagerApi
 import com.google.accompanist.pager.rememberPagerState
 import com.sunion.ikeyconnect.R
+import com.sunion.ikeyconnect.domain.usecase.home.UserSyncOrder
 import com.sunion.ikeyconnect.home.component.Empty
 import com.sunion.ikeyconnect.home.component.Locks
 import com.sunion.ikeyconnect.ui.component.LoadingScreenDialog
@@ -38,15 +40,21 @@ fun HomeScreen(viewModel: HomeViewModel, navController: NavController){
         },
         onLockClick = viewModel::onLockClick,
         onShowGuideClick = viewModel::setGuideHasBeenSeen,
-        onSettingClick = { macAddress ->
+        onSettingClick = { deviceIdentity ->
             navController.navigate(
-                "${HomeRoute.Settings.route}/$macAddress/${viewModel.isConnected(macAddress)}"
+                "${HomeRoute.Settings.route}/$deviceIdentity/${viewModel.isConnected(deviceIdentity)}/${viewModel.getBattery(deviceIdentity)}/${viewModel.getDeviceType(deviceIdentity)}"
             )
         },
         getUpdateTime = viewModel::getUpdateTime,
         onLockNameChange = viewModel::setLockName,
         onPageChangeByUser = viewModel::setCurrentPage,
         onSaveNameClick = viewModel::saveName,
+        onDrawerStateChange = { isOpen ->
+            viewModel.onDrawer(isOpen)
+        },
+        onListReOrder = { list ->
+            viewModel.changeOrderList(list)
+        }
     )
 }
 
@@ -65,6 +73,8 @@ fun HomeScreen(
     currentPage: Int = 0,
     boltToastState: Boolean? = null,
     onPageChangeByUser: (Int) -> Unit = {},
+    onDrawerStateChange: (Boolean) -> Unit = {},
+    onListReOrder: (MutableList<UserSyncOrder>) -> Unit = {},
     onSaveNameClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -80,6 +90,16 @@ fun HomeScreen(
 
     LaunchedEffect(key1 = currentPage) {
         pagerState.animateScrollToPage(currentPage)
+    }
+
+    LaunchedEffect(scaffoldState){
+        snapshotFlow { scaffoldState.drawerState.isOpen }.collect { isOpen ->
+            onDrawerStateChange(isOpen)
+        }
+    }
+
+    BackHandler {
+        return@BackHandler
     }
 
     Scaffold(
@@ -118,13 +138,15 @@ fun HomeScreen(
                 backgroundColor = if(state.networkAvailable)MaterialTheme.colors.primary else colorResource(id = R.color.disconnected)
             )
         },
-        drawerContent = {},
+        drawerContent = {
+            DrawerView(state.lockOrder, onListReOrder)
+        },
         drawerBackgroundColor = Color.White,
         modifier = modifier
-    ) {
+    ) { contentPadding ->
         Box(modifier = Modifier
             .fillMaxSize()
-            .background(Color.White), contentAlignment = Alignment.Center) {
+            .background(Color.White).padding(contentPadding), contentAlignment = Alignment.Center) {
             if (state.locks.isEmpty() && !state.isLoading)
                 Empty(modifier = Modifier.align(Alignment.Center))
             else
@@ -140,7 +162,7 @@ fun HomeScreen(
                     getUpdateTime = getUpdateTime,
                     onSaveNameClick = onSaveNameClick,
                     networkAvailable = state.networkAvailable,
-                    isLoading = state.isLockLoading
+                    loadingLocks = state.loadingLocks
                 )
         }
 

@@ -15,9 +15,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.colorResource
@@ -35,17 +35,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.accompanist.pager.*
 import com.sunion.ikeyconnect.BuildConfig
-import com.sunion.ikeyconnect.domain.blelock.BluetoothConnectState
 import com.sunion.ikeyconnect.home.HomeUiState
 import com.sunion.ikeyconnect.R
 import com.sunion.ikeyconnect.domain.model.*
 import com.sunion.ikeyconnect.getLockState
+import com.sunion.ikeyconnect.home.HomeViewModel
 import com.sunion.ikeyconnect.ui.theme.FuhsingSmartLockV2AndroidTheme
 
 @OptIn(ExperimentalPagerApi::class)
 @Composable
 fun Locks(
-    locks: List<WiFiLock>,
+    locks: List<SunionLock>,
     pagerState: PagerState,
     onAutoUnlockClock: (String) -> Unit,
     onManageClick: (String) -> Unit,
@@ -56,7 +56,7 @@ fun Locks(
     getUpdateTime: (String) -> Int?,
     networkAvailable: Boolean,
     onSaveNameClick: (String) -> Unit,
-    isLoading: Boolean,
+    loadingLocks: List<SunionLock>,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -72,7 +72,7 @@ fun Locks(
                 .fillMaxWidth()
         ) { page ->
             val lock = locks[page]
-            val isBleDisconnected = !lock.LockState.Connected
+            val isBleDisconnected = !(lock.LockState?.Connected?:false)
 
             Lock(
                 lock = lock,
@@ -86,11 +86,11 @@ fun Locks(
                 onUserCodeClick = onUserCodeClick,
                 onSettingClick = onSettingClick,
                 onSaveNameClick = onSaveNameClick,
-                macAddress = lock.Attributes.Bluetooth.MACAddress,
-                isWifi = true,
-                name = lock.Attributes.DeviceName,
+                macAddress = lock.Attributes?.Bluetooth?.MACAddress?:"",
+                isWifi = lock.LockType == HomeViewModel.DeviceType.WiFi.typeNum,
+                name = lock.Attributes?.DeviceName?:lock.BleLockInfo?.DisplayName?:"",
                 permission = "lock.permission",
-                isLoading = isLoading,
+                loadingLocks = loadingLocks,
             )
         }
 
@@ -102,7 +102,13 @@ fun Locks(
             HorizontalPagerIndicator(
                 pagerState = pagerState,
                 indicatorWidth = dimensionResource(id = R.dimen.space_6),
-                modifier = Modifier.padding(16.dp),
+                modifier = Modifier
+                    .padding(16.dp)
+                    .wrapContentWidth()
+                    .wrapContentHeight(),
+                inactiveColor = colorResource(id = R.color.primaryVariant),
+                activeColor = colorResource(id = R.color.primary),
+                indicatorShape = RectangleShape
             )
             Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.space_35)))
             Text(
@@ -111,7 +117,8 @@ fun Locks(
                     color = colorResource(id = R.color.primaryVariant),
                     fontWeight = FontWeight.Medium,
                     fontSize = 10.sp
-                )
+                ),
+                modifier = Modifier.align(Alignment.CenterHorizontally)
             )
         }
     }
@@ -119,7 +126,7 @@ fun Locks(
 
 @Composable
 private fun Lock(
-    lock: WiFiLock,
+    lock: SunionLock,
     getUpdateTime: (String) -> Int?,
     networkAvailable: Boolean,
     isBleDisconnected: Boolean,
@@ -134,7 +141,7 @@ private fun Lock(
     isWifi: Boolean,
     name: String,
     permission: String,
-    isLoading: Boolean,
+    loadingLocks: List<SunionLock>,
 ) {
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -153,11 +160,11 @@ private fun Lock(
             name = name,
             onLockNameChange = { onLockNameChange(macAddress, it) },
             onSaveNameClick = { onSaveNameClick(macAddress) },
-            isEnabled = lock.LockState.Connected
+            isEnabled = lock.LockState?.Connected?:false
         )
 
         Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.space_56)))
-        LockStatusImage(lock = lock, onLockClick = onLockClick, isLoading = isLoading)
+        LockStatusImage(lock = lock, onLockClick = onLockClick, lopadingLocks = loadingLocks)
 
         Spacer(modifier = Modifier.weight(1f))
         ActionRow(
@@ -166,7 +173,7 @@ private fun Lock(
             onManageClick = onManageClick,
             onUserCodeClick = onUserCodeClick,
             onSettingClick = onSettingClick,
-            thingName = lock.ThingName,
+            thingName = lock.DeviceIdentity,
             permission = permission,
             macAddress = macAddress
         )
@@ -313,9 +320,9 @@ private fun LockName(
 
 @Composable
 private fun LockStatusImage(
-    lock: WiFiLock,
+    lock: SunionLock,
     onLockClick: () -> Unit,
-    isLoading: Boolean,
+    lopadingLocks: List<SunionLock>,
     modifier: Modifier = Modifier,
 ) {
 
@@ -327,16 +334,18 @@ private fun LockStatusImage(
             animation = tween(2000, easing = LinearEasing)
         )
     )
-    Box(modifier = Modifier.wrapContentHeight().wrapContentWidth(), Alignment.Center) {
+    Box(modifier = Modifier
+        .wrapContentHeight()
+        .wrapContentWidth(), Alignment.Center) {
         Image(
             painter = painterResource(
                 id =
                 when {
 //                lock.isProcessing -> R.drawable.vector_lock_state_loading
-                    !lock.LockState.Connected -> R.drawable.vector_lock_state_not_connected
-                    lock.LockState.Direction == "unknown" -> R.drawable.vector_lock_state_bolt_required
+                    !(lock.LockState?.Connected?:false) -> R.drawable.vector_lock_state_not_connected
+                    lock.LockState?.Direction == "unknown" -> R.drawable.vector_lock_state_bolt_required
                     else ->
-                        when (lock.LockState.Deadbolt.getLockState()) {
+                        when (lock.LockState?.Deadbolt?.getLockState()) {
                             LockStatus.LOCKED -> R.drawable.vector_lock_state_locked
                             LockStatus.UNLOCKED -> R.drawable.vector_lock_state_unlocked
 //                    else -> R.drawable.vector_lock_state_loading
@@ -361,7 +370,8 @@ private fun LockStatusImage(
                 .size(dimensionResource(id = R.dimen.space_240))
                 .graphicsLayer {
                     rotationZ = angle
-                }.alpha(if(!isLoading)0f else 1f)
+                }
+                .alpha(if (lopadingLocks.contains(lock)) 1f else 0f)
         )
     }
 
@@ -456,7 +466,7 @@ private fun Preview(@PreviewParameter(LocksPreviewParameterProvider::class) uiSt
             getUpdateTime = { 2 },
             onSaveNameClick = {},
             networkAvailable = true,
-            isLoading = false
+            loadingLocks = listOf()
         )
     }
 }
@@ -481,8 +491,8 @@ class LocksPreviewParameterProvider : PreviewParameterProvider<HomeUiState> {
 //                    isWifi = true,
 //                    useWifi = true
 //                )
-                WiFiLock(
-                  ThingName = "",
+                SunionLock(
+                  DeviceIdentity = "",
                   Attributes = DeviceAttributes(
                       Bluetooth = DeviceBleInfo("","","",""),
                       DeviceName = "new_lock",
@@ -499,7 +509,10 @@ class LocksPreviewParameterProvider : PreviewParameterProvider<HomeUiState> {
                       Direction = "",
                       Searchable = 123456,
                       Connected = true
-                  )
+                  ),
+                    Order = 1,
+                    LockType = HomeViewModel.DeviceType.WiFi.typeNum,
+                    BleLockInfo = null
                 ),
             )
         ),

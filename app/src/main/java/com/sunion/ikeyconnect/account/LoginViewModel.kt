@@ -32,7 +32,7 @@ class LoginViewModel @Inject constructor(
     private val shareInvitationUseCase: ShareInvitationUseCase,
     private val getUserStateDetails: UserStateDetailsUseCase,
     private val cachingCredentialsProvider: CognitoCachingCredentialsProvider,
-    private val mqttStatefulConnection: MqttStatefulConnection
+    private val mqttStatefulConnection: MqttStatefulConnection,
     ) : ViewModel() {
     override fun onCleared() {
         super.onCleared()
@@ -143,7 +143,9 @@ class LoginViewModel @Inject constructor(
                 logins.put(USER_POOL_ADDRESS, idToken)
                 cachingCredentialsProvider.logins = logins
             }
-            .map { mqttStatefulConnection.setCredentialsProvider(cachingCredentialsProvider) }
+            .map {
+                mqttStatefulConnection.setCredentialsProvider(cachingCredentialsProvider)
+            }
             .flowOn(Dispatchers.IO)
             .onEach {
                 Timber.d(it.toString()) }

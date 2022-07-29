@@ -1,15 +1,16 @@
 package com.sunion.ikeyconnect.settings
 
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.widget.NumberPicker
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Switch
-import androidx.compose.material.SwitchDefaults
-import androidx.compose.material.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.compose.material.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
@@ -24,18 +25,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat.startActivity
 import androidx.navigation.NavController
-import com.sunion.ikeyconnect.home.HomeRoute
-import com.sunion.ikeyconnect.ui.component.IKeyDivider
-import com.sunion.ikeyconnect.ui.component.IKeyTopAppBar
-import com.sunion.ikeyconnect.ui.component.IkeyAlertDialog
-import com.sunion.ikeyconnect.ui.component.LoadingScreenDialog
-import com.sunion.ikeyconnect.ui.theme.FuhsingSmartLockV2AndroidTheme
 import com.sunion.ikeyconnect.R
+import com.sunion.ikeyconnect.data.getFirmwareModelUrlByString
+import com.sunion.ikeyconnect.domain.model.sunion_service.payload.RegistryGetResponse
+import com.sunion.ikeyconnect.home.HomeRoute
+import com.sunion.ikeyconnect.ui.component.*
+import com.sunion.ikeyconnect.ui.theme.FuhsingSmartLockV2AndroidTheme
+import timber.log.Timber
 
+@RequiresApi(Build.VERSION_CODES.Q)
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel, navController: NavController) {
     val uiState = viewModel.uiState.collectAsState().value
+    val tempUiState = viewModel.newRegistryAttributes.collectAsState().value
 
     val context = LocalContext.current
     LaunchedEffect(key1 = Unit) {
@@ -48,14 +53,56 @@ fun SettingsScreen(viewModel: SettingsViewModel, navController: NavController) {
             }
         }
     }
-
+    BackHandler {
+        viewModel.leaveSettingPage { navController.popBackStack() }
+        return@BackHandler
+    }
     SettingsScreen(
-        onNaviUpClick = navController::popBackStack,
+        onNaviUpClick = {
+            viewModel.leaveSettingPage { navController.popBackStack() }
+        },
         onDeleteClick = viewModel::delete,
+        onEditClick = { isClicked ->
+            viewModel.editClick(isClicked)
+        },
+        onVacationModeClick = { isEnable ->
+            viewModel.setVacationMode(isEnable)
+        },
+        onAutoLockClick = { isEnable ->
+            viewModel.setAutoLock(isEnable)
+        },
+        onAutoLockDone = { delay ->
+            viewModel.onAutoLockDone(delay)
+        },
+        onKeypressBeepClick = { isEnable ->
+            viewModel.setKeyPressBeep(isEnable)
+        },
+        onSecureModeClick = { isEnable ->
+            viewModel.setScureMode(isEnable)
+        },
+        onChangeAdminCodeClick = { thingName ->
+            viewModel.leaveSettingPage {
+            navController.navigate("${SettingRoute.ChangeAdminCode.route}/$thingName")}
+        },
+        onResetBoltDirectionClick = {},
+        onWiFiSettingClick = {
+            viewModel.leaveSettingPage {
+                navController.navigate("${SettingRoute.WiFiSetting.route}/" +
+                        "${viewModel.deviceIdentity}/" +
+                        "${uiState.registryAttributes.bluetooth?.macAddress}/" +
+                        "${uiState.registryAttributes.bluetooth?.broadcastName}/" +
+                        "${uiState.registryAttributes.bluetooth?.connectionKey}/" +
+                        "${uiState.registryAttributes.bluetooth?.shareToken}"
+                ) }
+        },
+        onFactoryResetClick = viewModel::onFactoryResetClick,
         state = uiState,
+        tempState = tempUiState,
         isConnected = viewModel.isConnected,
         onEventLogClick = { thingName ->
-            navController.navigate("${SettingRoute.EventLog.route}/$thingName/${uiState.wifiLock.Attributes.DeviceName}") },
+            viewModel.leaveSettingPage {
+            navController.navigate("${SettingRoute.EventLog.route}/$thingName/${uiState.registryAttributes.deviceName}") }
+                          },
     )
 
     if (uiState.showDeleteConfirmDialog)
@@ -72,19 +119,52 @@ fun SettingsScreen(viewModel: SettingsViewModel, navController: NavController) {
             onDismissButtonClick = viewModel::closeDeleteConfirmDialog
         )
 
+    if (uiState.showFactoryResetDialog)
+        IkeyAlertEditDialog(
+            onDismissRequest = viewModel::closeFactoryResetDialog,
+            onConfirmButtonClick = {
+                viewModel.closeFactoryResetDialog()
+                viewModel.onFactoryResetDialogComfirm()
+            },
+            title = stringResource(id = R.string.setting_reset),
+            text = stringResource(id = R.string.setting_factory_reset_alert_content),
+            confirmButtonText = stringResource(id = R.string.global_reset),
+            dismissButtonText = stringResource(id = R.string.global_cancel),
+            onDismissButtonClick = viewModel::closeFactoryResetDialog,
+            textFieldSubTitle = stringResource(id = R.string.global_admin_code),
+            textFieldValue = viewModel.adminCode.value,
+            onTextFieldChange = viewModel::setAdminCode,
+        )
+
     if (uiState.isLoading)
         LoadingScreenDialog("")
 }
 
+@RequiresApi(Build.VERSION_CODES.Q)
 @Composable
 fun SettingsScreen(
     state: SettingsUiState,
+    tempState: RegistryGetResponse.RegistryPayload.RegistryAttributes?,
     onNaviUpClick: () -> Unit,
     onDeleteClick: () -> Unit,
+    onEditClick: (Boolean) -> Unit,
     onEventLogClick: (String) -> Unit,
+    onVacationModeClick: (Boolean) -> Unit,
+    onAutoLockClick: (Boolean) -> Unit,
+    onAutoLockDone: (Int?) -> Unit,
+    onKeypressBeepClick: (Boolean) -> Unit,
+    onSecureModeClick: (Boolean) -> Unit,
+    onChangeAdminCodeClick: (String) -> Unit,
+    onResetBoltDirectionClick: (Boolean) -> Unit,
+    onWiFiSettingClick: () -> Unit,
+    onFactoryResetClick: () -> Unit,
     isConnected: Boolean,
     modifier: Modifier = Modifier
 ) {
+
+    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(getFirmwareModelUrlByString(tempState?.model?:"")))
+    val context = LocalContext.current
+
     val textStyle = TextStyle(
         color = colorResource(id = R.color.primary),
         fontWeight = FontWeight.Medium,
@@ -104,7 +184,7 @@ fun SettingsScreen(
         Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
             if (isConnected) {
                 SettingItem {
-                    Text(text = "${state.wifiLock.LockState.Battery}%", style = textStyle)
+                    Text(text = "${state.battery}%", style = textStyle)
                     Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.space_15)))
                     Image(
                         painter = painterResource(id = R.drawable.ic_battery_full),
@@ -114,29 +194,32 @@ fun SettingsScreen(
                 IKeyDivider()
                 SettingItemSwitch(
                     text = stringResource(id = R.string.setting_vacation_mode),
-                    checked = false,
-                    onCheckedChange = {},
+                    checked = tempState?.vacationMode?:false,
+                    onCheckedChange = { onVacationModeClick(!(tempState?.vacationMode?:false)) },
                     textStyle = textStyle
                 )
                 IKeyDivider()
-                SettingItemSwitch(
-                    text = stringResource(id = R.string.setting_auto_lock),
-                    checked = false,
-                    onCheckedChange = {},
+                SettingAutoLockItem(
+                    checked = tempState?.autoLock?:false,
+                    isEditable = state.isAutoLockEditClicked,
+                    onEditClick = { onEditClick(state.isAutoLockEditClicked) },
+                    onCheckedChange = { onAutoLockClick(!(tempState?.autoLock?:false)) },
+                    onAutoLockDone = { delay -> onAutoLockDone(delay) },
+                    autoLockDelay = tempState?.autoLockDelay?:2,
                     textStyle = textStyle
                 )
                 IKeyDivider()
                 SettingItemSwitch(
                     text = stringResource(id = R.string.setting_keypress_beep),
-                    checked = false,
-                    onCheckedChange = {},
+                    checked = tempState?.keyPressBeep?:false,
+                    onCheckedChange = { onKeypressBeepClick(!(tempState?.keyPressBeep?:false)) },
                     textStyle = textStyle
                 )
                 IKeyDivider()
                 SettingItemSwitch(
                     text = stringResource(id = R.string.setting_secure_mode),
-                    checked = false,
-                    onCheckedChange = {},
+                    checked = tempState?.secureMode?:false,
+                    onCheckedChange = { onSecureModeClick(!(tempState?.secureMode?:false)) },
                     textStyle = textStyle
                 )
                 IKeyDivider()
@@ -150,6 +233,7 @@ fun SettingsScreen(
                             .rotate(180f)
                             .size(dimensionResource(id = R.dimen.space_24))
                             .padding(4.dp)
+                            .clickable { onChangeAdminCodeClick(state.macAddressOrThingName) }
                     )
                 }
                 IKeyDivider()
@@ -181,27 +265,54 @@ fun SettingsScreen(
                         text = stringResource(id = R.string.setting_wifi_setting),
                         style = textStyle
                     )
+                    Spacer(modifier = Modifier
+                        .weight(1f)
+                    )
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_arrow_back),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .rotate(180f)
+                            .size(dimensionResource(id = R.dimen.space_24))
+                            .padding(4.dp)
+                            .clickable(onClick = { onWiFiSettingClick() }),
+                    )
                 }
                 IKeyDivider()
-            }
 
-            SettingItem(
-                modifier = Modifier
-                    .background(colorResource(R.color.light_primary))
-                    .clickable(onClick = onDeleteClick)
-            ) {
-                Text(text = stringResource(id = R.string.setting_delete_lock), style = textStyle)
-            }
-
-            if (isConnected) {
+                SettingItem(
+                    modifier = Modifier
+                        .background(colorResource(R.color.light_primary))
+                        .clickable(onClick = onDeleteClick)
+                ) {
+                    Text(text = stringResource(id = R.string.setting_delete_lock), style = textStyle)
+                }
                 IKeyDivider()
                 SettingItem(
                     modifier = Modifier
                         .background(colorResource(R.color.light_primary))
+                        .clickable { onFactoryResetClick() }
                 ) {
                     Text(text = stringResource(id = R.string.setting_reset), style = textStyle)
                 }
-                Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.space_66)))
+            }
+            IKeyDivider()
+            SettingItem(
+                modifier = Modifier
+                    .background(colorResource(R.color.light_primary))
+                    .clickable {
+                        try {
+                            startActivity(context, intent, null)
+                        } catch (error: Throwable) {
+                            Timber.d(error)
+                        }
+                    }
+            ) {
+                Text(text = stringResource(id = R.string.support_faq), style = textStyle)
+            }
+            Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.space_10)))
+
+            if (isConnected) {
                 Row(modifier = Modifier.padding(horizontal = dimensionResource(id = R.dimen.space_28))) {
                     val style = TextStyle(color = MaterialTheme.colors.primary, fontSize = 12.sp)
                     val style1 = TextStyle(
@@ -209,28 +320,137 @@ fun SettingsScreen(
                         fontWeight = FontWeight.Light,
                         fontSize = 10.sp
                     )
-                    Column {
-                        Text(
-                            text = stringResource(id = R.string.setting_model),
-                            style = style
-                        )
-                        Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.space_9)))
-                        Text(text = "??", style = style1)
-                    }
-                    Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.space_83)))
+//                    Column {
+//                        Text(
+//                            text = stringResource(id = R.string.setting_model),
+//                            style = style
+//                        )
+//                        Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.space_9)))
+//                        Text(text = state.registryAttributes.model, style = style1)
+//                    }
+//                    Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.space_83)))
                     Column {
                         Text(
                             text = stringResource(id = R.string.setting_firmware_version),
                             style = style
                         )
                         Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.space_9)))
-                        Text(text = "??", style = style1)
+                        Text(text = state.registryAttributes.firmwareVersion, style = style1)
                     }
                 }
             }
         }
     }
 }
+
+@RequiresApi(Build.VERSION_CODES.Q)
+@Composable
+private fun SettingAutoLockItem(
+    checked: Boolean,
+    isEditable: Boolean,
+    onEditClick: () -> Unit,
+    onCheckedChange: () -> Unit,
+    onAutoLockDone: (Int?) -> Unit,
+    autoLockDelay: Int,
+    textStyle: TextStyle
+) {
+    var autoLockDelayState by remember { mutableStateOf<Int?>(null) }
+
+    Column {
+        SettingItem {
+            Text(text = stringResource(id = R.string.setting_auto_lock), style = textStyle)
+            Spacer(modifier = Modifier.weight(1f))
+            Switch(
+                checked = checked,
+                onCheckedChange = { onCheckedChange() },
+                colors = SwitchDefaults.colors(uncheckedThumbColor = Color.White)
+            )
+        }
+        Text(
+            text = stringResource(id = R.string.setting_auto_lock_description),
+            style = TextStyle(color = colorResource(id = R.color.popup_text)),
+            fontSize = 14.sp,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(start = dimensionResource(id = R.dimen.space_29))
+        )
+        if(checked && !isEditable){
+            Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.space_15)))
+            Row(modifier = Modifier
+                .fillMaxSize()
+                .padding(start = dimensionResource(id = R.dimen.space_29)), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "${stringResource(id = R.string.setting_auto_lock_time)} ${
+                        if (autoLockDelay < 6) { "${autoLockDelay.times(10)} s" 
+                        } else { 
+                            "${autoLockDelay.times(10).div(60)} m ${autoLockDelay.times(10) % 60} s" }
+                    }",
+                    style = textStyle
+                )
+                Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.space_15)))
+                Image(
+                    modifier = Modifier
+                        .size(dimensionResource(id = R.dimen.space_26))
+                        .clickable { onEditClick() },
+                    painter = painterResource(id = R.drawable.ic_edit),
+                    contentDescription = null
+                )
+            }
+        }
+        if(isEditable){
+            Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.space_10)))
+            Column(modifier = Modifier
+                .fillMaxWidth()
+                .padding(5.dp)) {
+                Row(modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        start = dimensionResource(id = R.dimen.space_10),
+                        end = dimensionResource(id = R.dimen.space_10)
+                    ),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = stringResource(id = R.string.global_cancel), style = textStyle, modifier = Modifier.clickable { onEditClick() })
+                    Text(text = stringResource(id = R.string.global_done), style = textStyle, modifier = Modifier.clickable { onEditClick(); onAutoLockDone(autoLockDelayState) })
+                }
+                AndroidView(
+                    modifier = Modifier
+                        .padding(
+                            start = dimensionResource(id = R.dimen.space_80),
+                            end = dimensionResource(id = R.dimen.space_80)
+                        )
+                        .fillMaxWidth()
+                        .align(Alignment.CenterHorizontally),
+                    factory = { context ->
+                        context.setTheme(R.style.ThemeOverlay_NumberPicker)
+                        NumberPicker(context).apply {
+                            minValue = 1
+                            maxValue = 90
+                            value = autoLockDelay
+                            textSize = 40f
+
+                            setFormatter { value ->
+                                if (value < 6) {
+                                    "${value.times(10)} s"
+                                } else {
+                                    "${value.times(10).div(60)} m ${value.times(10) % 60} s"
+                                }
+                            }
+//                            textColor = resources.getColor(R.color.primary)
+                            setOnValueChangedListener { numberPicker, _, selectNum ->
+                                Timber.d("selectNum = $selectNum")
+                                autoLockDelayState = selectNum
+                            }
+                        }
+                    }
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.space_10)))
+
+    }
+}
+
 
 @Composable
 private fun SettingItemSwitch(
@@ -266,12 +486,17 @@ private fun SettingItem(
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.Q)
 @Preview
 @Preview(device = "id:Nexus 5")
 @Composable
 private fun Preview() {
     FuhsingSmartLockV2AndroidTheme {
-        SettingsScreen(onNaviUpClick = {}, onDeleteClick = {}, onEventLogClick = {}, isConnected = true, state = SettingsUiState())
+        SettingsScreen(
+            onNaviUpClick = {}, onDeleteClick = {}, onEditClick = {}, onEventLogClick = {}, onAutoLockDone = {}, onVacationModeClick = {},
+            onAutoLockClick = {}, onKeypressBeepClick = {}, onSecureModeClick = {}, onChangeAdminCodeClick = {},
+            onResetBoltDirectionClick = {}, onWiFiSettingClick = {}, onFactoryResetClick = {}, isConnected = true, state = SettingsUiState(), tempState = null)
+        @RequiresApi(Build.VERSION_CODES.Q)
         @Composable
         fun SettingsScreen(viewModel: SettingsViewModel, navController: NavController) {
             val uiState = viewModel.uiState.collectAsState().value
@@ -290,10 +515,12 @@ private fun Preview() {
 
             SettingsScreen(
                 onNaviUpClick = navController::popBackStack,
-                onDeleteClick = viewModel::delete,
-                onEventLogClick = {},
+                onDeleteClick = viewModel::delete, onEditClick = {}, onAutoLockDone = {},
+                onEventLogClick = {}, onVacationModeClick = {},
+                onAutoLockClick = {}, onKeypressBeepClick = {}, onSecureModeClick = {}, onChangeAdminCodeClick = {},
+                onResetBoltDirectionClick = {}, onWiFiSettingClick = {}, onFactoryResetClick = {},
                 isConnected = viewModel.isConnected,
-                state = SettingsUiState()
+                state = SettingsUiState(), tempState = null
             )
 
             if (uiState.showDeleteConfirmDialog)
@@ -505,10 +732,14 @@ private fun Preview() {
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.Q)
 @Preview
 @Composable
 private fun PreviewDisconnected() {
     FuhsingSmartLockV2AndroidTheme {
-        SettingsScreen(onNaviUpClick = {}, onDeleteClick = {}, onEventLogClick = {}, isConnected = false, state = SettingsUiState())
+        SettingsScreen(
+            onNaviUpClick = {}, onDeleteClick = {}, onEditClick = {}, onAutoLockDone = {}, onEventLogClick = {}, onVacationModeClick = {},
+            onAutoLockClick = {}, onKeypressBeepClick = {}, onSecureModeClick = {}, onChangeAdminCodeClick = {},
+            onResetBoltDirectionClick = {}, onWiFiSettingClick = {}, onFactoryResetClick = {}, isConnected = false, state = SettingsUiState(), tempState = null)
     }
 }

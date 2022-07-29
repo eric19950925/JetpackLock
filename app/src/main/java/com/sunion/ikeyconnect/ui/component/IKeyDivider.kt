@@ -19,6 +19,14 @@ fun IKeyDivider(modifier: Modifier = Modifier) {
     )
 }
 
+@Composable
+fun IKeyPrimaryDivider(modifier: Modifier = Modifier) {
+    Divider(
+        modifier = modifier,
+        color = colorResource(id = R.color.primary)
+    )
+}
+
 @Preview
 @Composable
 private fun PreviewIKeyDivider() {

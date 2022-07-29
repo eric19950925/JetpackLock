@@ -14,13 +14,12 @@ import com.amazonaws.mobileconnectors.iot.AWSIotMqttManager
 import com.sunion.ikeyconnect.account.AccountActivity
 import com.sunion.ikeyconnect.account.AccountNavigation
 import com.sunion.ikeyconnect.account.LoginViewModel
+import com.sunion.ikeyconnect.domain.blelock.StatefulConnection
 import com.sunion.ikeyconnect.home.HomeNavHost
+import com.sunion.ikeyconnect.home.HomeViewModel
 import com.sunion.ikeyconnect.ui.theme.FuhsingSmartLockV2AndroidTheme
 import com.sunion.ikeyconnect.welcome.WelcomeScreen
 import dagger.hilt.android.AndroidEntryPoint
-import com.sunion.ikeyconnect.R
-import com.sunion.ikeyconnect.domain.blelock.StatefulConnection
-import com.sunion.ikeyconnect.home.HomeViewModel
 import timber.log.Timber
 import javax.inject.Inject
 

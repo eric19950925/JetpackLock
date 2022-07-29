@@ -7,6 +7,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
+import timber.log.Timber
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import javax.inject.Inject
@@ -32,8 +33,9 @@ class ToastHttpException @Inject constructor(content: Context){
             is UnknownHostException -> {
                 "API:$apiName No Network"
             }
-            else -> "API:$apiName $e"
+            else -> "API:$apiName ${e.message}"
         }
+        Timber.e(msg)
         Looper.prepare()
         Toast.makeText(mContext, msg, Toast.LENGTH_SHORT).show()
         Looper.loop()

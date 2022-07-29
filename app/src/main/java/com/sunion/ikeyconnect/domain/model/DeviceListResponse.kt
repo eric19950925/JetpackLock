@@ -23,6 +23,15 @@ data class WiFiLock (
     val LockState: Reported,
 )
 
+data class SunionLock (
+    val DeviceIdentity: String,
+    val Attributes: DeviceAttributes?,
+    val LockState: Reported?,
+    val BleLockInfo: BleLock?,
+    val LockType: Int,
+    val Order: Int,
+)
+
 data class DeviceAttributes (
     val Bluetooth: DeviceBleInfo,
     val DeviceName: String,
@@ -35,5 +44,14 @@ data class DeviceBleInfo (
     val ConnectionKey: String,
     val MACAddress: String,
     val ShareToken: String,
+)
+
+data class BleLock (
+    val MACAddress: String,
+    val DisplayName: String,
+    val ConnectionKey: String,
+    val OneTimeToken: String,
+    val PermanentToken: String,
+    val SharedFrom: String,
 )
 

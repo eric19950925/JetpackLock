@@ -36,7 +36,7 @@ fun HomeNavHost(viewModel: HomeViewModel, onLogoutClick: () -> Unit) {
         )
         settingGraph(
             navController = navController,
-            route = "${HomeRoute.Settings.route}/{macAddress}/{isConnected}",
+            route = "${HomeRoute.Settings.route}/{macAddress}/{isConnected}/{battery}/{deviceType}",
         )
 //        composable("${HomeRoute.Settings.route}/{macAddress}/{isConnected}") { backStackEntry ->
 //            val macAddress = backStackEntry.arguments?.getString("macAddress") ?: ""

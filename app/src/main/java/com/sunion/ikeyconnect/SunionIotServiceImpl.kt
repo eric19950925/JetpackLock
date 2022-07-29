@@ -3,6 +3,8 @@ package com.sunion.ikeyconnect
 import com.sunion.ikeyconnect.domain.Interface.RemoteDeviceRepository
 import com.sunion.ikeyconnect.domain.Interface.SunionIotService
 import com.sunion.ikeyconnect.domain.model.sunion_service.*
+import com.sunion.ikeyconnect.domain.model.sunion_service.payload.DeviceAccessCodeGetResponse
+import com.sunion.ikeyconnect.domain.model.sunion_service.payload.RegistryGetResponse
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -81,12 +83,13 @@ class SunionIotServiceImpl @Inject constructor(
     override suspend fun updateAdminCode(
         thingName: String,
         adminCode: String,
-        timezone: String,
+        oldCode: String,
         clientToken: String,
     ) {
         remoteDeviceRepository.updateAdminCode(
             thingName = thingName,
             adminCode = adminCode,
+            oldCode = oldCode,
             clientToken = clientToken
         )
     }
@@ -109,5 +112,103 @@ class SunionIotServiceImpl @Inject constructor(
 
     override suspend fun getEvent(thingName: String, timestamp: Int, clientToken: String): EventGetResponse {
         return remoteDeviceRepository.getEvent(thingName, timestamp, clientToken)
+    }
+
+    override suspend fun getDeviceRegistry(
+        thingName: String,
+        clientToken: String
+    ): RegistryGetResponse {
+        return remoteDeviceRepository.getRegistry(thingName, clientToken)
+    }
+
+    override suspend fun updateDeviceRegistry(
+        thingName: String,
+        registryAttributes: RegistryGetResponse.RegistryPayload.RegistryAttributes,
+        clientToken: String
+    ): DeviceUpdateResponse {
+        return remoteDeviceRepository.updateDeviceRegistry(thingName, registryAttributes, clientToken)
+    }
+
+    override suspend fun updateWiFiSetting(
+        thingName: String,
+        clientToken: String
+    ): DeviceUpdateResponse {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun updateAutoLock(
+        thingName: String,
+        enable: Boolean,
+        delay: Int,
+        clientToken: String
+    ): DeviceUpdateResponse {
+        return remoteDeviceRepository.updateAutoLock(thingName, enable, delay, clientToken)
+    }
+
+    override suspend fun updateAutoLockDelay(
+        thingName: String,
+        clientToken: String
+    ): DeviceUpdateResponse {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun updateStatusNotification(
+        thingName: String,
+        clientToken: String
+    ): DeviceUpdateResponse {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun updateVacationMode(
+        thingName: String,
+        enable: Boolean,
+        clientToken: String
+    ): DeviceUpdateResponse {
+        return remoteDeviceRepository.updateVacationMode(thingName, enable, clientToken)
+    }
+
+    override suspend fun updateKeyPressBeep(
+        thingName: String,
+        enable: Boolean,
+        clientToken: String
+    ): DeviceUpdateResponse {
+        return remoteDeviceRepository.updateKeyPressBeep(thingName, enable, clientToken)
+    }
+
+    override suspend fun updateOfflineNotifiy(
+        thingName: String,
+        clientToken: String
+    ): DeviceUpdateResponse {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun updatePreamble(
+        thingName: String,
+        enable: Boolean,
+        clientToken: String
+    ): DeviceUpdateResponse {
+        return remoteDeviceRepository.updateVacationMode(thingName, enable, clientToken)
+    }
+
+    override suspend fun updateSecureMode(
+        thingName: String,
+        enable: Boolean,
+        clientToken: String
+    ): DeviceUpdateResponse {
+        return remoteDeviceRepository.updateSecureMode(thingName, enable, clientToken)
+    }
+
+    override suspend fun updateSyncing(
+        thingName: String,
+        clientToken: String
+    ): DeviceUpdateResponse {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun getAdminCode(
+        thingName: String,
+        clientToken: String
+    ): DeviceAccessCodeGetResponse {
+        return remoteDeviceRepository.getAdminCode(thingName, clientToken)
     }
 }

@@ -8,10 +8,12 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import javax.inject.Inject
 
-class SetFCMUseCase @Inject constructor(private val accountAPI: AccountAPI) {
-    private val gson = Gson()
+class SetFCMUseCase @Inject constructor(
+    private val accountAPI: AccountAPI,
+    private val gson: Gson,
+) {
     private val MEDIA_TYPE_JSON = CONTENT_TYPE_JSON.toMediaType()
-    val mSetNotifyPayload = SetNotifyPayload(
+    private val mSetNotifyPayload = SetNotifyPayload(
         Type = 0,
         Token = "FCMtoken",
         ApplicationID = "Sunion_20200617",

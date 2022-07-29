@@ -6,9 +6,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.amazonaws.mobileconnectors.iot.AWSIotMqttNewMessageCallback
+import com.amazonaws.mobileconnectors.iot.AWSIotMqttSubscriptionStatusCallback
 import com.google.gson.Gson
-import com.sunion.ikeyconnect.ConnectMqttUiEvent
-import com.sunion.ikeyconnect.MqttStatefulConnection
+import com.sunion.ikeyconnect.*
 import com.sunion.ikeyconnect.add_lock.ProvisionDomain
 import com.sunion.ikeyconnect.api.APIObject
 import com.sunion.ikeyconnect.data.PreferenceStore
@@ -20,8 +20,7 @@ import com.sunion.ikeyconnect.domain.usecase.account.GetIdentityIdUseCase
 import com.sunion.ikeyconnect.domain.usecase.account.GetUuidUseCase
 import com.sunion.ikeyconnect.domain.usecase.device.CollectWIfiStateUseCase
 import com.sunion.ikeyconnect.domain.usecase.device.IsNetworkConnectedUseCase
-import com.sunion.ikeyconnect.getLockState
-import com.sunion.ikeyconnect.optNullableString
+import com.sunion.ikeyconnect.domain.usecase.home.*
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -36,6 +35,8 @@ import javax.inject.Inject
 class HomeViewModel @Inject constructor(
     private val preferenceStore: PreferenceStore,
     private val mqttStatefulConnection: MqttStatefulConnection,
+    private val userSync: UserSyncUseCase,
+    private val getDeviceList: GetDeviceListUseCase,
     private val getIdToken: GetIdTokenUseCase,
     private val getIdentityId: GetIdentityIdUseCase,
     private val iotService: SunionIotService,
@@ -53,7 +54,11 @@ class HomeViewModel @Inject constructor(
     private val _uiEvent = MutableSharedFlow<HomeUiEvent>()
     val uiEvent: SharedFlow<HomeUiEvent> = _uiEvent
 
-    private val lockDevices = mutableStateListOf<WiFiLock>()
+    private val wifiLocksList = mutableStateListOf<WiFiLock>()
+    private val bleLocksList = mutableStateListOf<BleLock>()
+    private var tempOrderList = mutableListOf<UserSyncOrder>()
+
+    private var isListHasDiff = false
     private var currentIndex = 0
     private var previousDeadbolt = LockStatus.LOCKED
 
@@ -68,8 +73,8 @@ class HomeViewModel @Inject constructor(
     private val _showGuide = mutableStateOf(false)
     val showGuide: State<Boolean> = _showGuide
 
-    private val _devicesFromMqtt = MutableSharedFlow<MutableList<WiFiLock>?>()
-    private val devicesFromMqtt: SharedFlow<MutableList<WiFiLock>?> = _devicesFromMqtt
+    private val _wifiLocksFromMqtt = MutableSharedFlow<MutableList<WiFiLock>?>()
+    private val wifiLocksFromMqtt: SharedFlow<MutableList<WiFiLock>?> = _wifiLocksFromMqtt
     override fun onCleared() {
         super.onCleared()
         Timber.tag("HomeViewModel").d("onCleared")
@@ -98,26 +103,28 @@ class HomeViewModel @Inject constructor(
 
     private fun collectMqttConnectionState() {
         connectionState
-            .onEach {
-                Timber.d(it.toString())
-                when(it){
-//                    loadLocks()
+            .onEach { event ->
+                Timber.d(event.toString())
+                when(event){
                     ConnectMqttUiEvent.Prepared -> {
                         mqttStatefulConnection.connectMqtt()
-                        _uiState.update { it.copy(isLoading = true) }
+                        _uiState.update { it.copy(isLoading = true, loadingMessage = "Mqtt Connecting...") }
                         homePageListScope.launch{
                             delay(60000)
                             _uiState.update { it.copy(isLoading = false) }
-                            subDeviceList()
+                            prepareDataToDraw()
                             homePageListScope.cancel()
                         }
-                        _uiState.update { it.copy(loadingMessage = "Mqtt Connecting...") }
                     }
-                    ConnectMqttUiEvent.Connected -> subDeviceList()
-                    ConnectMqttUiEvent.ConnectionLost -> disconnectDeviceList()
-                    ConnectMqttUiEvent.Reconnecting -> disconnectDeviceList()
+                    ConnectMqttUiEvent.Connected -> {
+                        mqttStatefulConnection.unsubscribeAllTopic()
+                        getDeviceList.unsubscribeAllTopic()
+                        prepareDataToDraw()
+                    }
+                    ConnectMqttUiEvent.ConnectionLost -> disconnectWiFiLock()
+                    ConnectMqttUiEvent.Reconnecting -> disconnectWiFiLock()
                     else -> {
-                        Timber.d(it.toString())
+                        Timber.d(event.toString())
                     }
                 }
             }
@@ -125,16 +132,30 @@ class HomeViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
-    private suspend fun subDeviceList() {
+    private suspend fun prepareDataToDraw() {
         val idToken = runCatching {
             getIdToken().single()
         }.getOrNull() ?: return
 
         getIdentityId()
             .map { identityId ->
-                mqttStatefulConnection.subscribeApiPortal(idToken, identityId, getUuid.invoke(), callbackMqttApiPortal())
+                mqttStatefulConnection.subscribeApiPortal(
+                    identityId,
+                    callbackMqttApiPortal(),
+                    callbackForPub(idToken, identityId, getUuid.invoke()))
             }
             .launchIn(viewModelScope)
+    }
+    private fun callbackForPub(idToken: String, identityId: String, getUuid: String) = object:
+        AWSIotMqttSubscriptionStatusCallback {
+        override fun onSuccess() {
+            Timber.d("===// Sub success do Pub //===")
+            getDeviceList.pubDeviceList(idToken, identityId, getUuid)
+            userSync.pubGetUserSync(idToken, identityId, getUuid)
+//            userSync.pubUpdateUserSyncExample(idToken, identityId, getUuid, "", "")
+        }
+
+        override fun onFailure(exception: Throwable?) { Timber.e(exception) }
     }
 
     private fun callbackMqttApiPortal() = AWSIotMqttNewMessageCallback { _: String?, data: ByteArray? ->
@@ -144,13 +165,37 @@ class HomeViewModel @Inject constructor(
             val jsonObject = JSONTokener(message).nextValue() as JSONObject
             val apiName = jsonObject.optNullableString("API")?:throw IllegalArgumentException("Unknown API Mqtt Callback Msg.")
             val responseBody = jsonObject.getJSONObject("ResponseBody")
+            val payloadString = responseBody.optNullableString("Payload")
             val responseBodyString = jsonObject.getString("ResponseBody")
 
             when(apiName){
                 APIObject.DeviceList.route -> {
                     val resBody = Gson().fromJson(responseBodyString, DeviceListResponseBody::class.java)
                     val deviceList = resBody.Devices?:return@AWSIotMqttNewMessageCallback
-                    devicesUpdate(deviceList)
+                    wifiLocksUpdate(deviceList)
+                }
+                APIObject.GetUserSync.route -> {
+                    //prepare order list for drawing
+
+                    val payload = Gson().fromJson(payloadString, ResponsePayload::class.java)
+                    payload.Dataset.BLEDevices?.Devices?.let { bleLocksList.addAll( it ) }
+                    val orderList = payload.Dataset.DeviceOrder?.Order
+
+                    Timber.d(orderList.toString())
+                    orderListUpdate(orderList?: emptyList())
+
+                    /**Cloud will response one list one time.*/
+                    val version = responseBody.getJSONObject("Payload").getJSONObject("Dataset").optNullableJSONObject("DeviceOrder")?.getInt("version")
+                    userSync.updateModifyVersion(version?:0)
+
+                }
+                APIObject.UpdateUserSync.route -> {
+//                    val resBody = Gson().fromJson(responseBodyString, UserSyncResponseBody::class.java)
+//                    val BleLockList = resBody.Filter.BleLockInfo
+//                    val orderList = resBody.Filter.BleLockInfo?.Data
+//                    orderListUpdate(orderList?:return@AWSIotMqttNewMessageCallback)
+
+                    Timber.d(message)
                 }
                 APIObject.DeviceProvision.route -> {
                     val thingName = responseBody.optNullableString("ThingName")?:throw IllegalArgumentException("ThingName is Null.")
@@ -164,19 +209,39 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private fun devicesUpdate(deviceList: List<DeviceThing>) {
-        collectDeviceFromMqtt()
+    private fun orderListUpdate(orderList: List<UserSyncOrder>) {
+        val myOrderList = mutableListOf<UserSyncOrder>()
+        orderList.forEach {
+            myOrderList.add(it)
+        }
+
+        _uiState.update { it.copy(lockOrder = myOrderList, isLoading = false) }
+        createListForView()
+//        val typeToken = object : TypeToken<OrderData>() {}.type
+//        val new_OrderList = Gson().fromJson<ArrayList<OrderData>>(orderList, typeToken)
+//        Timber.d(new_OrderList.toString())
+
+        //Create user sync list then subpub each wifi lock
+//        collectOrderListFromMqtt()
+//        runBlocking {
+//            //store the device into state lock list
+//            updateOrderList(deviceList)
+//        }
+    }
+
+    private fun wifiLocksUpdate(deviceList: List<DeviceThing>) {
+        collectWifiLocksFromMqtt()
         runBlocking {
             //store the device into state lock list
-            updateLocksByMqtt(deviceList)
+            updateWifiLocks(deviceList)
         }
     }
 
-    private fun collectDeviceFromMqtt(){
-        devicesFromMqtt
+    private fun collectWifiLocksFromMqtt(){
+        wifiLocksFromMqtt
             .onEach { locks ->
-                lockDevices.clear()
-                lockDevices.addAll(locks ?: return@onEach)
+                wifiLocksList.clear()
+                wifiLocksList.addAll(locks ?: throw Exception("device is null"))
                 Timber.d("Clean and Update the list.")
             }
             .take(1)//test
@@ -198,14 +263,11 @@ class HomeViewModel @Inject constructor(
         Timber.d("page:$page")
         _uiState.update { it.copy(currentPage = page) }
         currentIndex = page
-
-        loadLockState(page)
     }
 
     private fun subPubGetThingShadow(thingName: String) =
-        getIdToken()
-            .map { idToken ->
-                mqttStatefulConnection.subGetThingShadow(thingName, getUuid.invoke(), callbackMqttGetThingShadow(thingName))
+        flow {
+                emit(getDeviceList.subGetThingShadow(thingName, getUuid.invoke(), callbackMqttGetThingShadow(thingName)))
             }
             .flowOn(Dispatchers.IO)
             .catch { Timber.e(it) }
@@ -228,7 +290,7 @@ class HomeViewModel @Inject constructor(
             Timber.d("callbackMqttGetThing: $shadowReported")
             runCatching {
                 Timber.d("Lock Deadbolt: ${shadowReported.Deadbolt}, Lock Connected: ${shadowReported.Connected}")
-                updateOneLockByMqtt(thingName, shadowReported)
+                updateWifiLockListByMqtt(thingName, shadowReported)
             }.onFailure { Timber.e(it) }
         } catch (e: Exception) {
             Timber.d("Message encoding error.", e)
@@ -239,7 +301,7 @@ class HomeViewModel @Inject constructor(
     private fun subPubUpdateThingShadow(thingName: String) =
         getIdToken()
             .map { idToken ->
-                mqttStatefulConnection.subUpdateThingShadow(thingName, callbackMqttUpdateThingShadow(thingName))
+                getDeviceList.subUpdateThingShadow(thingName, callbackMqttUpdateThingShadow(thingName))
             }
             .flowOn(Dispatchers.IO)
             .catch { Timber.e(it) }
@@ -265,33 +327,63 @@ class HomeViewModel @Inject constructor(
             runBlocking {
                 Timber.d("Thing-${thingName.substring(0,3)} callbackMqttUpadteThing: $shadowReported")
                 Timber.d("Lock Deadbolt: ${shadowReported.Deadbolt}, Lock Connected: ${shadowReported.Connected}")
-                updateOneLockByMqtt(thingName, shadowReported)
+                updateWifiLockListByMqtt(thingName, shadowReported)
             }
         } catch (e: Exception) {
             Timber.d("Message encoding error.", e)
         }
     }
 
-    private fun updateOneLockByMqtt(thingName: String, lockState: Reported){
-        lockDevices.indexOfFirst { it.ThingName == thingName }.let { index ->
-            lockDevices[index] = lockDevices[index].copy( LockState = lockState )
+    private fun updateWifiLockListByMqtt(deviceIdentity: String, lockState: Reported){
+        wifiLocksList.indexOfFirst { it.ThingName == deviceIdentity }.let { index ->
+            wifiLocksList[index] = wifiLocksList[index].copy( LockState = lockState )
 
-            Timber.d("Update UI of Lock-${thingName.substring(0,3)} "+lockDevices[index].toString())
-            _uiState.update {
-                if(it.locks.size > 0) {
-                    it.copy(locks = it.locks.toMutableList().apply {
-                        set(index, lockDevices[index])
-                    })
-                }
-                else it.copy(locks = lockDevices)
-            }
+            //todo???
             _uiState.update { it.copy(isLoading = false) }
-            if(lockDevices[index].LockState.Deadbolt.getLockState() != previousDeadbolt || !lockDevices[index].LockState.Connected)
-                _uiState.update { it.copy(isLockLoading = false) }
+            if(wifiLocksList[index].LockState.Deadbolt.getLockState() != previousDeadbolt || !wifiLocksList[index].LockState.Connected){
+                val loadingList = uiState.value.loadingLocks
+                loadingList.removeIf { it.DeviceIdentity == deviceIdentity }
+                _uiState.update { it.copy(loadingLocks = loadingList) }
+            }
         }
+        if(wifiLocksList.all { it.LockState.Deadbolt != "" }) createListForView()
+    }
+    private fun createListForView(){
+        val newList = mutableListOf<SunionLock>()
+
+        val orderList = uiState.value.lockOrder
+//        orderList.sortBy { it.Order }
+
+        orderList.forEach { order ->
+            newList.add(
+                when(mapDeviceType(order.DeviceType)){
+                    DeviceType.WiFi.typeNum -> {
+                        val wiFiLock = wifiLocksList.find{ it.ThingName == order.DeviceIdentity }?:throw Exception("WiFiLock's info is null.")
+                        SunionLock(DeviceIdentity = order.DeviceIdentity, wiFiLock.Attributes, wiFiLock.LockState, null, DeviceType.WiFi.typeNum, order.Order)
+                    }
+                    DeviceType.Ble.typeNum -> {
+                        val bleLock = bleLocksList.find { it.MACAddress == order.DeviceIdentity }?:throw Exception("BleLock's info is null.")
+                        SunionLock(DeviceIdentity = order.DeviceIdentity, null, null, bleLock, DeviceType.Ble.typeNum, order.Order)
+                    }
+                    DeviceType.BleMode.typeNum -> {
+                        val bleLock = bleLocksList.find { it.MACAddress == order.DeviceIdentity }?:throw Exception("BleLock's info is null.")
+                        SunionLock(DeviceIdentity = order.DeviceIdentity, null, null, bleLock, DeviceType.BleMode.typeNum , order.Order)
+                    }
+                    else -> { return@forEach }
+                }
+            )
+        }
+        //update ui state
+//        newList.sortBy { it.Order }
+        _uiState.update { it.copy(locks = newList) }
     }
 
-    private suspend fun updateLocksByMqtt(devices: List<DeviceThing>) {
+    sealed class DeviceType(val typeNum: Int) {
+        object WiFi : DeviceType(1)
+        object Ble : DeviceType(2)
+        object BleMode : DeviceType(3)
+    }
+    private suspend fun updateWifiLocks(devices: List<DeviceThing>) {
         val wifiLockList = mutableListOf<WiFiLock>()
         devices.forEach { deviceThing ->
             val wifilock = WiFiLock(
@@ -302,44 +394,77 @@ class HomeViewModel @Inject constructor(
             wifiLockList.add(wifilock)
         }
         Timber.d("Device list is prepared: $wifiLockList")
-        _devicesFromMqtt.emit(wifiLockList)
+        _wifiLocksFromMqtt.emit(wifiLockList)
+    }
+
+    fun onDrawer(isOpen: Boolean){
+        Timber.d("Drawer is Open = $isOpen")
+        if(!isOpen && isListHasDiff){
+            Timber.d("Update order list.")
+            updateOrderList()
+        }
+        isListHasDiff = false //每次開關都要重製，以免收合時以為有改動過
+    }
+
+    private fun updateOrderList(){
+        flow { emit(getIdToken().single()) }
+            .map { idToken ->
+                val identityId = getIdentityId().single()
+                (idToken to identityId)
+            }
+            .map { (idToken, identityId) ->
+                userSync.updateOrderList(idToken, identityId, getUuid.invoke(), tempOrderList)
+            }
+            .flowOn(Dispatchers.IO)
+            .onStart { _uiState.update { it.copy(isLoading = true, loadingMessage = "List ReOrder.") } }
+            .onCompletion {
+//                delay(1000)
+//                _uiState.update { it.copy(isLoading = false) }
+            }
+            .catch { e -> toastHttpException(e) }
+            .launchIn(viewModelScope)
     }
 
     fun isConnected(macAddress: String): Boolean =
-        uiState.value.locks.find { it.ThingName == macAddress }?.LockState?.Connected ?: false
+        uiState.value.locks.find { it.DeviceIdentity == macAddress }?.LockState?.Connected ?: false
 //        uiState.value.locks.find { it.Attributes.Bluetooth.MACAddress == macAddress }?.LockState?.Connected ?: false
 
+    fun getBattery(macAddress: String): Int =
+        uiState.value.locks.find { it.DeviceIdentity == macAddress }?.LockState?.Battery ?: 0
+
     fun onLockClick() {
-        val lock = lockDevices[currentIndex]
-        previousDeadbolt = lock.LockState.Deadbolt.getLockState()
-        //if is loading return
+        val lock = uiState.value.locks[currentIndex]
+        previousDeadbolt = lock.LockState?.Deadbolt?.getLockState()?:return
 
-        if(!lock.LockState.Connected || uiState.value.isLockLoading)return
+        if(lock.LockType != DeviceType.WiFi.typeNum) {
+            if(uiState.value.loadingLocks.contains(lock))return
+            //ble connect
+        }else {
+            if(!lock.LockState.Connected || uiState.value.loadingLocks.contains(lock))return
 
-        _uiState.update { it.copy(isLockLoading = true) }
+            val loadingList = uiState.value.loadingLocks
+            loadingList.add(lock)
+            _uiState.update { it.copy(loadingLocks = loadingList) }
+            clickWiFiLock(lock)
+        }
+    }
 
-
-        if(lock.LockState.Direction == "unknown"){
-            flow { emit(iotService.checkOrientation(lock.ThingName, getUuid.invoke())) }
-                .catch { e ->
-                    toastHttpException(e)
-                }
+    private fun clickWiFiLock(lock: SunionLock) {
+        if(lock.LockState?.Direction == "unknown"){
+            flow { emit(iotService.checkOrientation(lock.DeviceIdentity, getUuid.invoke())) }
+                .catch { e -> toastHttpException(e) }
                 .flowOn(Dispatchers.IO)
                 .launchIn(viewModelScope)
         }else {
-            if (lock.LockState.Deadbolt == "unlock") {
-                flow { emit(iotService.lock(lock.ThingName,getUuid.invoke())) }
-                    .catch { e ->
-                        toastHttpException(e)
-                    }
+            if (lock.LockState?.Deadbolt == "unlock") {
+                flow { emit(iotService.lock(lock.DeviceIdentity, getUuid.invoke())) }
+                    .catch { e -> toastHttpException(e) }
                     .flowOn(Dispatchers.IO)
                     .launchIn(viewModelScope)
             }
             else {
-                flow { emit(iotService.unlock(lock.ThingName,getUuid.invoke())) }
-                    .catch { e ->
-                        toastHttpException(e)
-                    }
+                flow { emit(iotService.unlock(lock.DeviceIdentity, getUuid.invoke())) }
+                    .catch { e -> toastHttpException(e) }
                     .flowOn(Dispatchers.IO)
                     .launchIn(viewModelScope)
             }
@@ -349,33 +474,51 @@ class HomeViewModel @Inject constructor(
     /**
      * Change home page locks' UI to disconnection.
      */
-    private fun disconnectDeviceList() = runBlocking {
+    private fun disconnectWiFiLock() = runBlocking {
         _uiState.update { it.copy(networkAvailable = isNetworkConnectedUseCase()) }
+        val newList = mutableListOf<SunionLock>()
 
-        lockDevices.forEachIndexed { index, wiFiLock ->
-            lockDevices[index] = lockDevices[index].copy(
-                LockState = Reported(
-                    Battery = wiFiLock.LockState.Battery,
-                    Rssi = wiFiLock.LockState.Rssi,
-                    Status = wiFiLock.LockState.Status,
-                    RegistryVersion = wiFiLock.LockState.RegistryVersion,
-                    AccessCodeTime = wiFiLock.LockState.AccessCodeTime,
-                    Deadbolt = "disconnect",
-                    Searchable = wiFiLock.LockState.Searchable,
-                    Direction = wiFiLock.LockState.Direction,
-                    Connected = false,
-                )
+        val orderList = uiState.value.lockOrder
+//        orderList.sortBy { it.Order }
+
+        orderList.forEach { order ->
+            newList.add(
+                when(mapDeviceType(order.DeviceType)){
+                    DeviceType.WiFi.typeNum -> {
+                        val wiFiLock = wifiLocksList.find{ it.ThingName == order.DeviceIdentity }?:throw Exception("WiFiLock's info is null.")
+                        SunionLock(DeviceIdentity = order.DeviceIdentity, wiFiLock.Attributes,
+                            LockState = Reported(
+                                Battery = wiFiLock.LockState.Battery,
+                                Rssi = wiFiLock.LockState.Rssi,
+                                Status = wiFiLock.LockState.Status,
+                                RegistryVersion = wiFiLock.LockState.RegistryVersion,
+                                AccessCodeTime = wiFiLock.LockState.AccessCodeTime,
+                                Deadbolt = "disconnect",
+                                Searchable = wiFiLock.LockState.Searchable,
+                                Direction = wiFiLock.LockState.Direction,
+                                Connected = false,
+                            ),
+                            null, DeviceType.WiFi.typeNum, order.Order)
+                    }
+                    DeviceType.Ble.typeNum -> {
+                        val bleLock = bleLocksList.find { it.MACAddress == order.DeviceIdentity }?:throw Exception("BleLock's info is null.")
+                        SunionLock(DeviceIdentity = order.DeviceIdentity, null, null, bleLock, DeviceType.Ble.typeNum, order.Order)
+                    }
+                    DeviceType.BleMode.typeNum -> {
+                        val bleLock = bleLocksList.find { it.MACAddress == order.DeviceIdentity }?:throw Exception("BleLock's info is null.")
+                        SunionLock(DeviceIdentity = order.DeviceIdentity, null, null, bleLock, DeviceType.BleMode.typeNum , order.Order)
+                    }
+                    else -> { return@forEach }
+                }
             )
-
-            _uiState.update {
-                if (it.locks.size > 0) {
-                    it.copy(locks = it.locks.toMutableList().apply {
-                        set(index, lockDevices[index])
-                    })
-                } else it.copy(locks = lockDevices)
-            }
-            _uiState.update { it.copy(isLockLoading = false) }
         }
+        //update ui state
+//        newList.sortBy { it.Order }
+        _uiState.update { it.copy(locks = newList) }
+
+        val loadingList = uiState.value.loadingLocks
+        loadingList.removeIf { it.LockType == DeviceType.WiFi.typeNum }
+        _uiState.update { it.copy(loadingLocks = loadingList) }
 
     }
 
@@ -383,49 +526,6 @@ class HomeViewModel @Inject constructor(
     fun setLockName(thingName: String, name: String){}
     fun saveName(thingName: String){}
 
-    private fun loadLockState(index: Int) {
-        if (lockDevices.isEmpty() || index > lockDevices.lastIndex)
-            return
-
-        val currentLock = lockDevices[index]
-
-//        collectedBleConnectStatus(bleDevice)
-        //Todo : Must use model homeLock 紀錄所有資訊與狀態
-
-//        if (true/*currentLock is ConnectedDevice*/) {
-//            flow { emit(lockProvider.getLockByMacAddress(currentLock.macAddress)) }
-//                .flatMapConcat {
-//
-//                }
-//                .flowOn(Dispatchers.IO)
-////                .onStart { setLockIsProcessing(index, true) }
-////                .onCompletion {
-////                    setLockIsProcessing(index, false)
-////                    _uiState.update { it.copy(locks = lockDevices) }
-////                }
-//                .onEach {
-//
-//                }
-//                .catch { Timber.e(it) }
-//                .launchIn(viewModelScope)
-//        }
-    }
-
-//    private fun setLockIsProcessing(index: Int, isProcessing: Boolean) {
-//        _uiState.update {
-//            it.copy(locks = uiState.value.locks.toMutableList().apply {
-//                set(
-//                    index,
-//                    when (val lock = lockDevices[index]) {
-//                        is ConnectedDevice -> lock.copy(isProcessing = isProcessing)
-//                        is DisconnectedDevice -> lock.copy(isProcessing = isProcessing)
-//                        is BoltOrientationFailDevice -> lock.copy(isProcessing = isProcessing)
-//                        else -> lock
-//                    }
-//                )
-//            })
-//        }
-//    }
     @OptIn(FlowPreview::class)
     fun boltOrientation(macAddress: String) {
 //        loadLocksFlow()
@@ -502,15 +602,29 @@ class HomeViewModel @Inject constructor(
         _uiState.update { it.copy(showGuide = false) }
     }
 
+    fun changeOrderList(list: MutableList<UserSyncOrder>) {
+        //if list has been reorder, then wait for update(close side bar)
+        isListHasDiff = list != uiState.value.lockOrder
+        tempOrderList = list
+    }
+
+    fun getDeviceType(deviceIdentity: String) =
+        when(uiState.value.locks.find { it.DeviceIdentity == deviceIdentity }?.LockType){
+            1 -> "wifi"
+            2 -> "ble"
+            3 -> "ble mode"
+            else -> ""
+        }
 
 }
 
 data class HomeUiState(
     val showGuide: Boolean = false,
     val isLoading: Boolean = false,
-    val isLockLoading: Boolean = false,
+    val loadingLocks: MutableList<SunionLock> = mutableStateListOf(),
     val loadingMessage: String = "loading ...",
-    val locks: MutableList<WiFiLock> = mutableStateListOf(),
+    val locks: MutableList<SunionLock> = mutableStateListOf(),
+    var lockOrder: MutableList<UserSyncOrder> = mutableStateListOf(),
     val currentPage: Int = 0,
     val networkAvailable: Boolean = false,
 )

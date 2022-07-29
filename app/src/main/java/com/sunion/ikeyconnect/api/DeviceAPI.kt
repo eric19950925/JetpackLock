@@ -1,6 +1,7 @@
 package com.sunion.ikeyconnect.api
 
 import com.sunion.ikeyconnect.domain.model.sunion_service.*
+import com.sunion.ikeyconnect.domain.model.sunion_service.payload.*
 import retrofit2.http.*
 
 interface DeviceAPI {
@@ -40,6 +41,12 @@ interface DeviceAPI {
     suspend fun deviceAccessCodeUpdate(@Body request: DeviceAccessCodeUpdateRequest): DeviceUpdateResponse
 
     /**
+     * 更新裝置 Access code
+     */
+    @POST("device-accesscode/get")
+    suspend fun deviceAccessCodeGet(@Body request: DeviceAccessCodeGetRequest): DeviceAccessCodeGetResponse
+
+    /**
      * 裝置刪除
      */
     @POST("device-provision/delete")
@@ -64,4 +71,11 @@ interface DeviceAPI {
      */
     @POST("event/get")
     suspend fun eventGet(@Body request: EventGetRequest): EventGetResponse
+
+    /**
+     * 取得裝置註冊資訊
+     */
+    @POST("device-registry/get")
+    suspend fun deviceRegistryGet(@Body request: RegistryGetRequest): RegistryGetResponse
+
 }

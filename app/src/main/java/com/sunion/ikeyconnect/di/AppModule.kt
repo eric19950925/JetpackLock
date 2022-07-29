@@ -17,6 +17,7 @@ import com.sunion.ikeyconnect.api.AuthInterceptor
 import com.sunion.ikeyconnect.api.DeviceAPI
 import com.sunion.ikeyconnect.api.ErrorInterceptor
 import com.sunion.ikeyconnect.domain.Interface.AuthRepository
+import com.sunion.ikeyconnect.domain.Interface.MqttSupPubRepository
 import com.sunion.ikeyconnect.domain.Interface.RemoteDeviceRepository
 import com.sunion.ikeyconnect.domain.Interface.SunionIotService
 import com.sunion.ikeyconnect.domain.exception.ToastHttpException
@@ -125,7 +126,7 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideStatefulConnection(awsIotMqttManager: AWSIotMqttManager, topicRepositoryImpl: TopicRepositoryImpl, application: Application) =
+    fun provideStatefulConnection(awsIotMqttManager: AWSIotMqttManager, topicRepositoryImpl: TopicRepositoryImpl, application: Application): MqttSupPubRepository =
         MqttStatefulConnection(awsIotMqttManager, topicRepositoryImpl, application)
 
     @Provides
