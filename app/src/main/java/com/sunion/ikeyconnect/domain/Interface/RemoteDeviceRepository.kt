@@ -3,6 +3,9 @@ package com.sunion.ikeyconnect.domain.Interface
 import com.sunion.ikeyconnect.domain.model.sunion_service.*
 import com.sunion.ikeyconnect.domain.model.sunion_service.payload.DeviceAccessCodeGetResponse
 import com.sunion.ikeyconnect.domain.model.sunion_service.payload.RegistryGetResponse
+import com.sunion.ikeyconnect.domain.usecase.home.PubGetUserSyncRequestBody
+import com.sunion.ikeyconnect.domain.usecase.home.PubGetUserSyncResponseBody
+import com.sunion.ikeyconnect.domain.usecase.home.GetUserSyncRequestBody
 
 interface RemoteDeviceRepository {
     suspend fun create(request: DeviceProvisionCreateRequest): String
@@ -10,6 +13,10 @@ interface RemoteDeviceRepository {
     suspend fun ticketGet(request: DeviceProvisionTicketGetRequest): DeviceProvisionTicketGetResponse
 
     suspend fun list(clientToken: String): DeviceListResponse
+
+    suspend fun getUserSync(request: PubGetUserSyncRequestBody): PubGetUserSyncResponseBody
+
+    suspend fun updateUserSync(request: GetUserSyncRequestBody): PubGetUserSyncResponseBody
 
     suspend fun updateDeviceName(
         thingName: String,

@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import com.google.android.gms.maps.model.LatLng
 import com.sunion.ikeyconnect.R
 import com.sunion.ikeyconnect.ui.component.GoogleMapViewOnly
+import com.sunion.ikeyconnect.ui.component.LoadingScreenDialog
 import com.sunion.ikeyconnect.ui.component.PrimaryButton
 import com.sunion.ikeyconnect.ui.theme.FuhsingSmartLockV2AndroidTheme
 import com.sunion.ikeyconnect.ui.theme.colorPrimaryBoldSize18
@@ -106,6 +107,8 @@ fun LockOverviewScreen(
         )
         Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.space_24)))
     }
+    if (state.isLoading)
+        LoadingScreenDialog("")
 }
 
 @Preview

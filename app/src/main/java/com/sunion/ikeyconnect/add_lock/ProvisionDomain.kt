@@ -17,7 +17,7 @@ class ProvisionDomain @Inject constructor(
     var provisionThingName = ""
 
     //provision-create
-    suspend fun create(
+    suspend fun provisionCreate(
         serialNumber: String,
         deviceName: String,
         timeZone: String,

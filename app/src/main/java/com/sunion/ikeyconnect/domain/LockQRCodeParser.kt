@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.util.Base64
 import android.util.Log
 import com.google.gson.Gson
+import com.sunion.ikeyconnect.domain.blelock.BleCmdRepository.Companion.BARCODE_KEY
 import com.sunion.ikeyconnect.domain.model.QRCodeContent
 import timber.log.Timber
 import java.util.*
@@ -12,12 +13,11 @@ import javax.crypto.spec.SecretKeySpec
 import kotlin.random.Random
 
 internal object LockQRCodeParser {
-    private const val key = "SoftChefSunion65"
     private val gson = Gson()
 
     fun parseWifiQRCodeContent(content: String): QRCodeContent {
         val data = Base64.decode(content.toByteArray(), Base64.DEFAULT)
-        val decode = decryptV2(data, key.toByteArray())
+        val decode = decryptV2(data, BARCODE_KEY.toByteArray())
         val decodeString = String(decode!!)
         Timber.d(decodeString)
         val qrCodeContent = gson.fromJson(decodeString, QRCodeContent::class.java)!!
@@ -26,7 +26,7 @@ internal object LockQRCodeParser {
 
     fun parseQRCodeContent(content: String): QRCodeContent {
         val data = Base64.decode(content.toByteArray(), Base64.DEFAULT)
-        val decode = decryptV1(data, key.toByteArray())
+        val decode = decryptV1(data, BARCODE_KEY.toByteArray())
         val decodeString = String(decode!!)
 //        Log.d("TAG",decodeString)
         Timber.d(decodeString)

@@ -6,6 +6,9 @@ import com.sunion.ikeyconnect.domain.model.sunion_service.DeviceUpdateResponse
 import com.sunion.ikeyconnect.domain.model.sunion_service.EventGetResponse
 import com.sunion.ikeyconnect.domain.model.sunion_service.payload.DeviceAccessCodeGetResponse
 import com.sunion.ikeyconnect.domain.model.sunion_service.payload.RegistryGetResponse
+import com.sunion.ikeyconnect.domain.usecase.home.PubGetUserSyncRequestBody
+import com.sunion.ikeyconnect.domain.usecase.home.PubGetUserSyncResponseBody
+import com.sunion.ikeyconnect.domain.usecase.home.GetUserSyncRequestBody
 
 
 interface SunionIotService {
@@ -24,6 +27,10 @@ interface SunionIotService {
     ): DeviceProvisionTicketGetResponse
 
     suspend fun getDeviceList(clientToken: String): List<DeviceListResponse.Device>
+
+    suspend fun getUserSync(request: PubGetUserSyncRequestBody): PubGetUserSyncResponseBody
+
+    suspend fun updateUserSync(request: GetUserSyncRequestBody): PubGetUserSyncResponseBody
 
     suspend fun updateDeviceName(
         thingName: String,

@@ -4,6 +4,10 @@ import com.sunion.ikeyconnect.api.DeviceAPI
 import com.sunion.ikeyconnect.domain.Interface.RemoteDeviceRepository
 import com.sunion.ikeyconnect.domain.model.sunion_service.*
 import com.sunion.ikeyconnect.domain.model.sunion_service.payload.*
+import com.sunion.ikeyconnect.domain.usecase.home.PubGetUserSyncRequestBody
+import com.sunion.ikeyconnect.domain.usecase.home.PubGetUserSyncResponseBody
+import com.sunion.ikeyconnect.domain.usecase.home.ResponseDataset
+import com.sunion.ikeyconnect.domain.usecase.home.GetUserSyncRequestBody
 import java.util.*
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -21,6 +25,12 @@ class RemoteDeviceRepositoryImpl @Inject constructor(
 
     override suspend fun list(clientToken: String): DeviceListResponse =
         deviceAPI.deviceList(clientToken = clientToken)
+
+    override suspend fun getUserSync(request: PubGetUserSyncRequestBody): PubGetUserSyncResponseBody =
+        deviceAPI.userSyncGet(request = request)
+
+    override suspend fun updateUserSync(request: GetUserSyncRequestBody): PubGetUserSyncResponseBody =
+        deviceAPI.userSyncUpdate(request = request)
 
     override suspend fun updateDeviceName(
         thingName: String,

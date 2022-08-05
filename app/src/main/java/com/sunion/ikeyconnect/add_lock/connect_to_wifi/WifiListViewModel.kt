@@ -3,16 +3,14 @@ package com.sunion.ikeyconnect.add_lock.connect_to_wifi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sunion.ikeyconnect.LockProvider
+import com.sunion.ikeyconnect.domain.Interface.LockInformationRepository
 import com.sunion.ikeyconnect.domain.Interface.WifiListResult
 import com.sunion.ikeyconnect.domain.blelock.BluetoothConnectState
 import com.sunion.ikeyconnect.domain.usecase.account.GetClientTokenUseCase
 import com.sunion.ikeyconnect.lock.WifiLock
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -20,6 +18,7 @@ import javax.inject.Inject
 class WifiListViewModel @Inject constructor(
     private val getClientTokenUseCase: GetClientTokenUseCase,
     private val lockProvider: LockProvider,
+    private val lockInformationRepository: LockInformationRepository,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(WiFiListUiState())
     val uiState: StateFlow<WiFiListUiState> = _uiState
@@ -133,6 +132,23 @@ class WifiListViewModel @Inject constructor(
             scanWifiJob = null
         }
     }
+
+//    fun setSkip(onComplete: () -> Unit) {
+//        val lock = lock ?: return
+//        viewModelScope.launch(Dispatchers.IO) {
+//            runCatching {
+//                val information =
+//                    lockInformationRepository.get(lock.lockInfo.macAddress).blockingGet()
+//                lockInformationRepository.saveCompletable(information.copy(useWifi = false))
+//                    .blockingAwait()
+//                withContext(Dispatchers.Main) { onComplete() }
+//            }.onFailure {
+//                Timber.e(it)
+//                withContext(Dispatchers.Main) { onComplete() }
+//            }
+//        }
+//    }
+
 }
 
 data class WiFiListUiState(

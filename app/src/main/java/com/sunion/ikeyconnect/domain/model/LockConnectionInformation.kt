@@ -70,5 +70,5 @@ data class LockConnectionInformation(
     val index: Int,
 
     @ColumnInfo(name = "thing_name")
-    val thingName: String? = null
+    var thingName: String? = null
 )

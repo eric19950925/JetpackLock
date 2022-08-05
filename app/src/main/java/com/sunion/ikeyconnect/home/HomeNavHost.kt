@@ -32,7 +32,10 @@ fun HomeNavHost(viewModel: HomeViewModel, onLogoutClick: () -> Unit) {
         addLockGraph(
             navController = navController,
             route = HomeRoute.AddLock.route,
-            onAddLockFinish = viewModel::boltOrientation
+            onAddLockFinish = { macAddress ->
+                viewModel.boltOrientation(macAddress)
+                viewModel.getDeviceList()
+            }
         )
         settingGraph(
             navController = navController,

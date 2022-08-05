@@ -5,16 +5,24 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
+import com.sunion.ikeyconnect.add_lock.admin_code.AdminCodeScreen
+import com.sunion.ikeyconnect.add_lock.admin_code.AdminCodeViewModel
 import com.sunion.ikeyconnect.add_lock.connect_to_wifi.ConnectWifiScreen
 import com.sunion.ikeyconnect.add_lock.connect_to_wifi.ConnectWifiViewModel
 import com.sunion.ikeyconnect.add_lock.connect_to_wifi.WIfiListScreen
 import com.sunion.ikeyconnect.add_lock.connect_to_wifi.WifiListViewModel
+import com.sunion.ikeyconnect.add_lock.installation.InstallationInstructionsScreen
+import com.sunion.ikeyconnect.add_lock.installation.InstallationScreen
 import com.sunion.ikeyconnect.add_lock.lock_overview.LockOverviewScreen
 import com.sunion.ikeyconnect.add_lock.lock_overview.LockOverviewViewModel
 import com.sunion.ikeyconnect.add_lock.pairing.PairingScreen
 import com.sunion.ikeyconnect.add_lock.pairing.PairingViewModel
+import com.sunion.ikeyconnect.add_lock.request_location.RequestLocationScreen
+import com.sunion.ikeyconnect.add_lock.request_location.RequestLocationViewModel
 import com.sunion.ikeyconnect.add_lock.scan_qrcode.ScanLockPermissionScreen
 import com.sunion.ikeyconnect.add_lock.scan_qrcode.ScanLockQRCodeScreen
+import com.sunion.ikeyconnect.add_lock.set_location.SetLockLocationScreen
+import com.sunion.ikeyconnect.add_lock.set_location.SetLockLocationViewModel
 import com.sunion.ikeyconnect.home.HomeRoute
 
 fun NavGraphBuilder.addLockGraph(
@@ -31,18 +39,18 @@ fun NavGraphBuilder.addLockGraph(
         }
         composable("${AddLockRoute.Installation.route}/{macAddress}") { backStackEntry ->
             val macAddress = backStackEntry.arguments?.getString("macAddress") ?: ""
-//            InstallationScreen(
-//                navController = navController,
-//                macAddress = macAddress
-//            )
+            InstallationScreen(
+                navController = navController,
+                macAddress = macAddress
+            )
         }
         composable("${AddLockRoute.InstallationInstructions.route}/{macAddress}") { backStackEntry ->
             val macAddress = backStackEntry.arguments?.getString("macAddress") ?: ""
-//            InstallationInstructionsScreen(
-//                viewModel = hiltViewModel(),
-//                navController = navController,
-//                macAddress = macAddress
-//            )
+            InstallationInstructionsScreen(
+                viewModel = hiltViewModel(),
+                navController = navController,
+                macAddress = macAddress
+            )
         }
         composable("${AddLockRoute.Pairing.route}/{macAddress}") { backStackEntry ->
             val macAddress = backStackEntry.arguments?.getString("macAddress") ?: ""
@@ -65,21 +73,21 @@ fun NavGraphBuilder.addLockGraph(
         }
         composable("${AddLockRoute.AdminCode.route}/{macAddress}") { backStackEntry ->
             val macAddress = backStackEntry.arguments?.getString("macAddress") ?: ""
-//            val viewModel = hiltViewModel<AdminCodeViewModel>()
-//            viewModel.macAddress ?: viewModel.init(macAddress)
-//            AdminCodeScreen(viewModel = viewModel, navController = navController)
+            val viewModel = hiltViewModel<AdminCodeViewModel>()
+            viewModel.macAddress ?: viewModel.init(macAddress)
+            AdminCodeScreen(viewModel = viewModel, navController = navController)
         }
         composable("${AddLockRoute.RequestLocation.route}/{macAddress}") { backStackEntry ->
             val macAddress = backStackEntry.arguments?.getString("macAddress") ?: ""
-//            val viewModel = hiltViewModel<RequestLocationViewModel>()
-//            viewModel.macAddress ?: viewModel.init(macAddress)
-//            RequestLocationScreen(viewModel = viewModel, navController = navController)
+            val viewModel = hiltViewModel<RequestLocationViewModel>()
+            viewModel.macAddress ?: viewModel.init(macAddress)
+            RequestLocationScreen(viewModel = viewModel, navController = navController)
         }
         composable("${AddLockRoute.SetLocation.route}/{macAddress}") { backStackEntry ->
             val macAddress = backStackEntry.arguments?.getString("macAddress") ?: ""
-//            val viewModel = hiltViewModel<SetLockLocationViewModel>()
-//            viewModel.macAddress ?: viewModel.init(macAddress)
-//            SetLockLocationScreen(viewModel = viewModel, navController = navController)
+            val viewModel = hiltViewModel<SetLockLocationViewModel>()
+            viewModel.macAddress ?: viewModel.init(macAddress)
+            SetLockLocationScreen(viewModel = viewModel, navController = navController)
         }
         composable("${AddLockRoute.LockOverview.route}/{macAddress}") { backStackEntry ->
             val macAddress = backStackEntry.arguments?.getString("macAddress") ?: ""

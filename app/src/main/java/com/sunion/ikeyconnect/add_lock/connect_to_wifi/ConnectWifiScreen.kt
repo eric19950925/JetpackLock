@@ -37,6 +37,7 @@ fun ConnectWifiScreen(viewModel: ConnectWifiViewModel, navController: NavControl
             when (it) {
                 ConnectWifiUiEvent.ConnectSuccess ->
                     navController.navigate("${AddLockRoute.LockOverview.route}/${viewModel.macAddress}")
+//                    navController.navigate("${AddLockRoute.AdminCode.route}/${viewModel.macAddress}")
                 ConnectWifiUiEvent.ConnectFailed ->
                     navController.navigate("${AddLockRoute.Pairing.route}/${viewModel.macAddress}")
                 ConnectWifiUiEvent.BleDisconnected ->

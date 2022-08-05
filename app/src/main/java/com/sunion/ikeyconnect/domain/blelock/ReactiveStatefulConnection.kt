@@ -1,9 +1,11 @@
 package com.sunion.ikeyconnect.domain.blelock
 
+import android.util.Base64
 import com.polidea.rxandroidble2.*
 import com.polidea.rxandroidble2.scan.ScanSettings
 import com.sunion.ikeyconnect.domain.Interface.SunionWifiService
 import com.sunion.ikeyconnect.domain.Interface.WifiListResult
+import com.sunion.ikeyconnect.domain.blelock.BleCmdRepository.Companion.NOTIFICATION_CHARACTERISTIC
 import com.sunion.ikeyconnect.domain.command.ConnectWifiCommand
 import com.sunion.ikeyconnect.domain.command.WifiConnectState
 import com.sunion.ikeyconnect.domain.command.WifiListCommand
@@ -33,10 +35,6 @@ class ReactiveStatefulConnection @Inject constructor(
     private val wifiListCommand: WifiListCommand,
     private val connectWifiCommand: ConnectWifiCommand,
 ) : StatefulConnection, SunionWifiService {
-
-    companion object {
-        val NOTIFICATION_CHARACTERISTIC = UUID.fromString("de915dce-3539-61ea-ade7-d44a2237601f")
-    }
 
     private var lockScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val connectWifiState = mutableListOf<String>()
@@ -360,5 +358,39 @@ class ReactiveStatefulConnection @Inject constructor(
     }
     fun getIsConnected(): Boolean{
         return _bleDevice?.connectionState == RxBleConnection.RxBleConnectionState.CONNECTED
+    }
+
+    fun setupSingleNotificationThenSendCommand(
+        command: ByteArray,
+        functionName: String = ""
+    ): Flow<ByteArray> {
+        Timber.d("--> en:${command.toHex()} by $functionName")
+        if (BuildConfig.DEBUG) {
+            mBleCmdRepository.decrypt(Base64.decode(keyTwo, Base64.DEFAULT), command)
+                ?.let {
+                    Timber.d("--> de:${it.toHex()} by $functionName")
+                }
+        }
+
+        return _rxBleConnection!!
+            .setupNotification(NOTIFICATION_CHARACTERISTIC)
+            .flatMap { it }
+            .asFlow()
+            .onStart {
+                lockScope.launch(Dispatchers.IO) {
+                    delay(200)
+                    _rxBleConnection!!.writeCharacteristic(NOTIFICATION_CHARACTERISTIC, command).toObservable()
+                        .asFlow().single()
+                }
+            }
+            .onEach { notification ->
+                Timber.d("<-- en:${notification.toHex()} by $functionName")
+                if (BuildConfig.DEBUG) {
+                    mBleCmdRepository.decrypt(Base64.decode(keyTwo, Base64.DEFAULT), command)
+                        ?.let {
+                            Timber.d("--> de:${it.toHex()} by $functionName")
+                        }
+                }
+            }
     }
 }

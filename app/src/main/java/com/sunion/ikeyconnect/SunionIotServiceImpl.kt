@@ -5,6 +5,9 @@ import com.sunion.ikeyconnect.domain.Interface.SunionIotService
 import com.sunion.ikeyconnect.domain.model.sunion_service.*
 import com.sunion.ikeyconnect.domain.model.sunion_service.payload.DeviceAccessCodeGetResponse
 import com.sunion.ikeyconnect.domain.model.sunion_service.payload.RegistryGetResponse
+import com.sunion.ikeyconnect.domain.usecase.home.PubGetUserSyncRequestBody
+import com.sunion.ikeyconnect.domain.usecase.home.PubGetUserSyncResponseBody
+import com.sunion.ikeyconnect.domain.usecase.home.GetUserSyncRequestBody
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -59,6 +62,12 @@ class SunionIotServiceImpl @Inject constructor(
 
     override suspend fun getDeviceList(clientToken: String): List<DeviceListResponse.Device> =
         remoteDeviceRepository.list(clientToken).devices
+
+    override suspend fun getUserSync(request: PubGetUserSyncRequestBody): PubGetUserSyncResponseBody =
+        remoteDeviceRepository.getUserSync(request)
+
+    override suspend fun updateUserSync(request: GetUserSyncRequestBody): PubGetUserSyncResponseBody =
+        remoteDeviceRepository.updateUserSync(request)
 
     override suspend fun updateDeviceName(
         thingName: String,

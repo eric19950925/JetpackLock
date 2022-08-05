@@ -39,7 +39,11 @@ fun WIfiListScreen(viewModel: WifiListViewModel, navController: NavController) {
     WIfiListScreen(
         onNaviUpClick = { navController.popBackStack() },
         state = uiState,
-        onSkipClick = { navController.navigate("${AddLockRoute.LockOverview.route}/${viewModel.macAddress}") },
+        onSkipClick = {
+//            viewModel.setSkip(onComplete = {
+                navController.navigate("${AddLockRoute.AdminCode.route}/${viewModel.macAddress}")
+//            })
+        },
         onItemClick = { ssid ->
             navController.navigate("${AddLockRoute.ConnectWifi.route}/${viewModel.macAddress}/$ssid")
         },

@@ -80,7 +80,7 @@ class LockProvider @Inject constructor(
 
         val wifiLock = wifiLock.init(lockInfo)
 
-        provisionDomain.create(
+        provisionDomain.provisionCreate(
                 serialNumber = lockInfo.serialNumber,
                 deviceName = lockInfo.deviceName,
                 timeZone = ZoneId.systemDefault().id,

@@ -2,6 +2,9 @@ package com.sunion.ikeyconnect.api
 
 import com.sunion.ikeyconnect.domain.model.sunion_service.*
 import com.sunion.ikeyconnect.domain.model.sunion_service.payload.*
+import com.sunion.ikeyconnect.domain.usecase.home.PubGetUserSyncRequestBody
+import com.sunion.ikeyconnect.domain.usecase.home.PubGetUserSyncResponseBody
+import com.sunion.ikeyconnect.domain.usecase.home.GetUserSyncRequestBody
 import retrofit2.http.*
 
 interface DeviceAPI {
@@ -27,6 +30,22 @@ interface DeviceAPI {
     suspend fun deviceList(
         @Query("clienttoken") clientToken: String
     ): DeviceListResponse
+
+    /**
+     * UserSync - Get
+     */
+    @POST("user-sync/get")
+    suspend fun userSyncGet(
+        @Body request: PubGetUserSyncRequestBody
+    ): PubGetUserSyncResponseBody
+
+    /**
+     * UserSync - Update
+     */
+    @POST("user-sync/update")
+    suspend fun userSyncUpdate(
+        @Body request: GetUserSyncRequestBody
+    ): PubGetUserSyncResponseBody
 
     /**
      * 更新裝置註冊資訊

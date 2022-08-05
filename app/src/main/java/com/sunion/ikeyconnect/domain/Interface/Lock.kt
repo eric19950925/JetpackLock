@@ -1,6 +1,7 @@
 package com.sunion.ikeyconnect.domain.Interface
 
 import com.sunion.ikeyconnect.domain.model.Event
+import com.sunion.ikeyconnect.domain.model.LockConfig
 import com.sunion.ikeyconnect.domain.model.LockInfo
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharedFlow
@@ -38,7 +39,7 @@ interface Lock {
 
     suspend fun editToken(index: Int, permission: String, name: String): Boolean
 
-//    suspend fun setLocation(latitude: Double, longitude: Double): LockConfig
+    suspend fun setLocation(latitude: Double, longitude: Double): LockConfig
 
 //    suspend fun getBoltOrientation(clientToken: String? = null): LockOrientation
 

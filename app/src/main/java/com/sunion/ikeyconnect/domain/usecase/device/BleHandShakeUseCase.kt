@@ -1,7 +1,5 @@
 package com.sunion.ikeyconnect.domain.usecase.device
 
-import android.app.PendingIntent
-import android.os.Build
 import android.util.Base64
 import androidx.annotation.VisibleForTesting
 import com.polidea.rxandroidble2.NotificationSetupMode
@@ -10,7 +8,7 @@ import javax.inject.Singleton
 import com.polidea.rxandroidble2.RxBleConnection
 import com.sunion.ikeyconnect.domain.Interface.LockInformationRepository
 import com.sunion.ikeyconnect.domain.blelock.BleCmdRepository
-import com.sunion.ikeyconnect.domain.blelock.ReactiveStatefulConnection
+import com.sunion.ikeyconnect.domain.blelock.BleCmdRepository.Companion.NOTIFICATION_CHARACTERISTIC
 import com.sunion.ikeyconnect.domain.blelock.unSignedInt
 import com.sunion.ikeyconnect.domain.exception.NotConnectedException
 import com.sunion.ikeyconnect.domain.model.DeviceToken
@@ -22,28 +20,12 @@ import io.reactivex.Single
 import io.reactivex.functions.BiFunction
 import io.reactivex.schedulers.Schedulers
 import timber.log.Timber
-import java.util.*
 
 @Singleton
 class BleHandShakeUseCase @Inject constructor(
     private val mBleCmdRepository: BleCmdRepository,
     private val lockInformationRepository: LockInformationRepository,
 ){
-    companion object {
-        const val CIPHER_MODE = "AES/ECB/NoPadding"
-        const val BARCODE_KEY = "SoftChefSunion65"
-        val NOTIFICATION_CHARACTERISTIC: UUID = UUID.fromString("de915dce-3539-61ea-ade7-d44a2237601f")
-        val SUNION_SERVICE_UUID: UUID = UUID.fromString("fc3d8cf8-4ddc-7ade-1dd9-2497851131d7")
-        const val DATA = "DATA"
-        const val CURRENT_LOCK_MAC = "CURRENT_LOCK_MAC"
-        const val GEOFENCE_RADIUS_IN_METERS = 100f
-        var MY_PENDING_INTENT_FLAG = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-        } else {
-            PendingIntent.FLAG_UPDATE_CURRENT
-        }
-    }
-
     fun getLockConnection(macAddress: String): Single<LockConnectionInformation> {
         return lockInformationRepository.get(macAddress)
     }
@@ -96,7 +78,7 @@ class BleHandShakeUseCase @Inject constructor(
                     .flatMap { stateAndPermission ->
                         connection
                             .setupNotification(
-                                ReactiveStatefulConnection.NOTIFICATION_CHARACTERISTIC,
+                                NOTIFICATION_CHARACTERISTIC,
                                 NotificationSetupMode.DEFAULT
                             ) // receive [C1], [D6] only
                             .flatMap { it }
@@ -144,7 +126,7 @@ class BleHandShakeUseCase @Inject constructor(
                     .flatMap { stateAndPermission ->
                         connection
                             .setupNotification(
-                                ReactiveStatefulConnection.NOTIFICATION_CHARACTERISTIC,
+                                NOTIFICATION_CHARACTERISTIC,
                                 NotificationSetupMode.DEFAULT
                             )
                             .flatMap { it }
@@ -218,7 +200,7 @@ class BleHandShakeUseCase @Inject constructor(
     ): Observable<ByteArray> {
         return Observable.zip(
             rxConnection.setupNotification(
-                ReactiveStatefulConnection.NOTIFICATION_CHARACTERISTIC,
+                NOTIFICATION_CHARACTERISTIC,
                 NotificationSetupMode.DEFAULT
             )
                 .flatMap { notification -> notification }
@@ -231,7 +213,7 @@ class BleHandShakeUseCase @Inject constructor(
                     decrypted?.component3()?.unSignedInt() == 0xC0
                 },
             rxConnection.writeCharacteristic(
-                ReactiveStatefulConnection.NOTIFICATION_CHARACTERISTIC,
+                NOTIFICATION_CHARACTERISTIC,
                 mBleCmdRepository.createCommand(0xC0, keyOne, token)
             ).toObservable(),
             BiFunction { notification: ByteArray, written: ByteArray ->
@@ -267,7 +249,7 @@ class BleHandShakeUseCase @Inject constructor(
     ): Observable<Pair<Int, String>> {
         return Observable.zip(
             rxConnection.setupNotification(
-                ReactiveStatefulConnection.NOTIFICATION_CHARACTERISTIC,
+                NOTIFICATION_CHARACTERISTIC,
                 NotificationSetupMode.DEFAULT
             )
                 .flatMap { notification -> notification }
@@ -276,7 +258,7 @@ class BleHandShakeUseCase @Inject constructor(
                         ?.unSignedInt() == 0xC1
                 },
             rxConnection.writeCharacteristic(
-                ReactiveStatefulConnection.NOTIFICATION_CHARACTERISTIC,
+                NOTIFICATION_CHARACTERISTIC,
                 mBleCmdRepository.createCommand(0xC1, keyTwo, token)
             ).toObservable(),
             BiFunction { notification: ByteArray, written: ByteArray ->

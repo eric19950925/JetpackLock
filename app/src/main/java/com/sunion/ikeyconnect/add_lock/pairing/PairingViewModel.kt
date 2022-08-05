@@ -163,18 +163,18 @@ class PairingViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
-    fun lockByNetWork(){
-        val wifiLock = lock ?: return
-        flow{
-            emit((wifiLock as WifiLock).lockByNetwork(getClientTokenUseCase()))
-        }
-            .onEach {
-                Timber.d(it.toString())
-            }
-            .flowOn(Dispatchers.IO)
-            .catch { Timber.e(it) }
-            .launchIn(viewModelScope)
-    }
+//    fun lockByNetWork(){
+//        val wifiLock = lock ?: return
+//        flow{
+//            emit((wifiLock as WifiLock).lockByNetwork(getClientTokenUseCase()))
+//        }
+//            .onEach {
+//                Timber.d(it.toString())
+//            }
+//            .flowOn(Dispatchers.IO)
+//            .catch { Timber.e(it) }
+//            .launchIn(viewModelScope)
+//    }
 
     fun deleteLock() {
         flow { emit(lock!!.delete(getClientTokenUseCase())) }

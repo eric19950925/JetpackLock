@@ -130,6 +130,7 @@ class SettingsViewModel @Inject constructor(
             .onStart { _uiState.update { it.copy(isLoading = true) } }
             .catch { e ->
                 toastHttpException(e)
+                _uiState.update { it.copy(isLoading = false) }
             }.launchIn(viewModelScope)
     }
 

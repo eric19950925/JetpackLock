@@ -1,13 +1,17 @@
 package com.sunion.ikeyconnect.lock
 
+import android.util.Base64
 import com.polidea.rxandroidble2.RxBleConnection
 import com.polidea.rxandroidble2.RxBleDevice
 import com.sunion.ikeyconnect.domain.Interface.*
+import com.sunion.ikeyconnect.domain.blelock.BleCmdRepository
 import com.sunion.ikeyconnect.domain.blelock.BluetoothConnectState
 import com.sunion.ikeyconnect.domain.blelock.ReactiveStatefulConnection
+import com.sunion.ikeyconnect.domain.blelock.unSignedInt
 import com.sunion.ikeyconnect.domain.command.WifiConnectState
 import com.sunion.ikeyconnect.domain.exception.EmptyLockInfoException
 import com.sunion.ikeyconnect.domain.model.*
+import com.sunion.ikeyconnect.domain.toHex
 import com.sunion.ikeyconnect.domain.usecase.account.GetIdTokenUseCase
 import io.reactivex.Single
 import io.reactivex.disposables.Disposable
@@ -25,6 +29,7 @@ class WifiLock @Inject constructor(
     private val userCodeRepository: UserCodeRepository,
     private val eventLogRepository: LockEventLogRepository,
     private val statefulConnection: ReactiveStatefulConnection,
+    private val iKeyDataTransmission: BleCmdRepository,
     private val iotService: SunionIotService,
     private val getIdToken: GetIdTokenUseCase,
     ) : Lock {
@@ -104,6 +109,49 @@ class WifiLock @Inject constructor(
     }
 
     override suspend fun editToken(index: Int, permission: String, name: String): Boolean {
+        return editTokenByBle(index, permission, name)
+    }
+
+    private suspend fun editTokenByBle(index: Int, permission: String, name: String): Boolean {
+        val bytes = byteArrayOf(index.toByte()) + permission.toByteArray() + name.toByteArray()
+        Timber.d("index: $index, token name: $name, permission: $permission, e7 bytes: ${bytes.toHex()}")
+        val command = iKeyDataTransmission.createCommand(
+            function = 0xE7,
+            key = Base64.decode(keyTwo, Base64.DEFAULT),
+            data = bytes
+        )
+
+        return statefulConnection.setupSingleNotificationThenSendCommand(command, "editTokenByBle")
+            .filter { notification ->
+                iKeyDataTransmission.decrypt(
+                    Base64.decode(keyTwo, Base64.DEFAULT), notification
+                )?.let { decrypted ->
+                    decrypted.component3().unSignedInt() == 0xE7
+                } ?: false
+            }
+            .take(1)
+            .map { notification ->
+                iKeyDataTransmission.resolveE7(
+                    Base64.decode(keyTwo, Base64.DEFAULT),
+                    notification
+                ).isSuccessful
+            }
+            .zip(lockInformationRepository.get(lockInfo.macAddress).toObservable().asFlow())
+            { isSuccessful, info -> Pair(isSuccessful, info) }
+            .map { (isSuccessful, lockConnection) ->
+                lockInformationRepository.save(
+                    lockConnection.copy(
+                        isOwnerToken = true,
+                        tokenName = name,
+                        permission = lockConnection.permission
+                    )
+                )
+                isSuccessful
+            }
+            .single()
+    }
+
+    override suspend fun setLocation(latitude: Double, longitude: Double): LockConfig {
         TODO("Not yet implemented")
     }
 
@@ -154,35 +202,35 @@ class WifiLock @Inject constructor(
                 true
             }
 
-    suspend fun lockByNetwork(clientToken: String?): LockSetting {
-
-        val idToken = runCatching {
-            getIdToken().single()
-        }.getOrNull() ?: return LockSetting(LockConfig(LockOrientation.Left,false,false,false,0,null,null),LockStatus.LOCKED,0,0,0)
-
-        return lockInformationRepository
-            .get(lockInfo.macAddress)
-            .toObservable()
-            .asFlow()
-            .flatMapConcat { flow { emit(iotService.lock(it.thingName!!, clientToken!!)) } }
-            .map {
-                LockSetting(
-                    config = LockConfig(
-                        orientation = LockOrientation.Left, //TODO
-                        isSoundOn = false,
-                        isVacationModeOn = false,
-                        isAutoLock = false,
-                        autoLockTime = 0,
-                        latitude = null,
-                        longitude = null
-                    ),
-                    status = LockStatus.LOCKED,
-                    battery = 0,
-                    batteryStatus = 0,
-                    timestamp = 0
-                )
-            }
-            .single()
-    }
+//    suspend fun lockByNetwork(clientToken: String?): LockSetting {
+//
+//        val idToken = runCatching {
+//            getIdToken().single()
+//        }.getOrNull() ?: return LockSetting(LockConfig(LockOrientation.Left,false,false,false,0,null,null),LockStatus.LOCKED,0,0,0)
+//
+//        return lockInformationRepository
+//            .get(lockInfo.macAddress)
+//            .toObservable()
+//            .asFlow()
+//            .flatMapConcat { flow { emit(iotService.lock(it.thingName!!, clientToken!!)) } }
+//            .map {
+//                LockSetting(
+//                    config = LockConfig(
+//                        orientation = LockOrientation.Left, //TODO
+//                        isSoundOn = false,
+//                        isVacationModeOn = false,
+//                        isAutoLock = false,
+//                        autoLockTime = 0,
+//                        latitude = null,
+//                        longitude = null
+//                    ),
+//                    status = LockStatus.LOCKED,
+//                    battery = 0,
+//                    batteryStatus = 0,
+//                    timestamp = 0
+//                )
+//            }
+//            .single()
+//    }
 
 }

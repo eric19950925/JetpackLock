@@ -8,8 +8,9 @@ import com.sunion.ikeyconnect.domain.model.LockInfo
 import kotlinx.coroutines.flow.single
 import kotlinx.coroutines.rx2.asFlow
 import javax.inject.Inject
+import javax.inject.Singleton
 
-
+@Singleton
 class SaveLockInfoUseCase @Inject constructor(
     private val lockInformationRepository: LockInformationRepository
     ) {

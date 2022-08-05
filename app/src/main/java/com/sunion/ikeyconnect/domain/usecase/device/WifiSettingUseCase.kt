@@ -6,10 +6,10 @@ import com.polidea.rxandroidble2.RxBleConnection
 import com.sunion.ikeyconnect.domain.Interface.LockInformationRepository
 import com.sunion.ikeyconnect.domain.Interface.WifiSettingDomain
 import com.sunion.ikeyconnect.domain.blelock.BleCmdRepository
+import com.sunion.ikeyconnect.domain.blelock.BleCmdRepository.Companion.NOTIFICATION_CHARACTERISTIC
 import com.sunion.ikeyconnect.domain.command.WifiListCommand
 import com.sunion.ikeyconnect.domain.blelock.unSignedInt
 import com.sunion.ikeyconnect.domain.toHex
-import com.sunion.ikeyconnect.domain.usecase.device.BleHandShakeUseCase.Companion.NOTIFICATION_CHARACTERISTIC
 import io.reactivex.Observable
 import io.reactivex.functions.BiFunction
 import kotlinx.coroutines.Dispatchers
