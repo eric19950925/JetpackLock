@@ -103,6 +103,18 @@ class SunionIotServiceImpl @Inject constructor(
         )
     }
 
+    override suspend fun createAdminCode(
+        thingName: String,
+        adminCode: String,
+        clientToken: String
+    ) {
+        remoteDeviceRepository.createAdminCode(
+            thingName = thingName,
+            adminCode = adminCode,
+            clientToken = clientToken
+        )
+    }
+
     override suspend fun delete(thingName: String, clientToken: String) {
         remoteDeviceRepository.delete(thingName, clientToken)
     }
@@ -143,6 +155,15 @@ class SunionIotServiceImpl @Inject constructor(
         clientToken: String
     ): DeviceUpdateResponse {
         TODO("Not yet implemented")
+    }
+
+    override suspend fun updateLocation(
+        thingName: String,
+        latitude: Double,
+        longitude: Double,
+        clientToken: String
+    ): DeviceUpdateResponse {
+        return remoteDeviceRepository.updateLocation(thingName, latitude, longitude, clientToken)
     }
 
     override suspend fun updateAutoLock(

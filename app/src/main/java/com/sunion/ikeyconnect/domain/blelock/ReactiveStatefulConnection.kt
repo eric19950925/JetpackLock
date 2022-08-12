@@ -9,6 +9,7 @@ import com.sunion.ikeyconnect.domain.blelock.BleCmdRepository.Companion.NOTIFICA
 import com.sunion.ikeyconnect.domain.command.ConnectWifiCommand
 import com.sunion.ikeyconnect.domain.command.WifiConnectState
 import com.sunion.ikeyconnect.domain.command.WifiListCommand
+import com.sunion.ikeyconnect.domain.exception.NotConnectedException
 import com.sunion.ikeyconnect.domain.model.Event
 import com.sunion.ikeyconnect.domain.model.EventState
 import com.sunion.ikeyconnect.domain.model.LockInfo
@@ -17,6 +18,7 @@ import com.sunion.ikeyconnect.domain.usecase.device.BleHandShakeUseCase
 import io.reactivex.Observable
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.disposables.Disposable
+import io.reactivex.functions.BiFunction
 import io.reactivex.subjects.PublishSubject
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -71,7 +73,7 @@ class ReactiveStatefulConnection @Inject constructor(
     private val lastConnectionState = MutableStateFlow<Event<Pair<Boolean, String>>?>(null)
 
     override fun connectionFallback(): Observable<RxBleConnection> {
-        TODO("Not yet implemented")
+        return _connection ?: Observable.error(NotConnectedException())
     }
 
     override fun isConnectedWithDevice(): Boolean {
@@ -270,7 +272,19 @@ class ReactiveStatefulConnection @Inject constructor(
     }
 
     override fun sendCommandThenWaitSingleNotification(bytes: ByteArray): Observable<ByteArray> {
-        TODO("Not yet implemented")
+        return Observable.just(_rxBleConnection).flatMap { rxConnection ->
+            Observable.zip(
+                rxConnection.setupNotification(
+                    NOTIFICATION_CHARACTERISTIC,
+                    NotificationSetupMode.DEFAULT
+                )
+                    .flatMap { notification -> notification },
+                rxConnection.writeCharacteristic(NOTIFICATION_CHARACTERISTIC, bytes).toObservable(),
+                BiFunction { notification: ByteArray, _: ByteArray ->
+                    notification
+                }
+            )
+        }
     }
 
     override fun sendCommandThenWaitNotifications(bytes: ByteArray): Observable<ByteArray> {

@@ -159,7 +159,7 @@ private fun Lock(
         LockName(
             name = name,
             onLockNameChange = { onLockNameChange(macAddress, it) },
-            onSaveNameClick = { onSaveNameClick(macAddress) },
+            onSaveNameClick = { onSaveNameClick(lock.DeviceIdentity) },
             isEnabled = lock.LockState?.Connected?:false
         )
 
@@ -262,6 +262,7 @@ private fun LockName(
     modifier: Modifier = Modifier,
 ) {
     var editable by remember { mutableStateOf(false) }
+    var text by remember(name) { mutableStateOf(name) }
     Row(
         modifier = modifier.padding(top = dimensionResource(id = R.dimen.space_72)),
         verticalAlignment = Alignment.CenterVertically
@@ -272,16 +273,21 @@ private fun LockName(
             fontWeight = FontWeight.Bold,
             fontSize = 24.sp
         )
-        if (editable)
+        if (editable) {
             BasicTextField(
-                value = name,
+                value = text,
                 onValueChange = {
-                    if (it.length <= 20)
+                    text = it
+                    if (it.length in 1..20)
                         onLockNameChange(it)
                 },
-                textStyle = style.copy(textAlign = TextAlign.Center),
+                textStyle = style.copy(
+                    textAlign = TextAlign.Center,
+                    color = colorResource(id = R.color.enable_green)
+                ),
                 maxLines = 1
             )
+        }
         else
             Text(text = name, style = style)
         Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.space_20)))
@@ -300,7 +306,7 @@ private fun LockName(
                     if (!isEnabled)
                         return@clickable
                     editable = !editable
-                    if (editable)
+                    if (!editable && text!=name)
                         onSaveNameClick()
                 })
                 .run {

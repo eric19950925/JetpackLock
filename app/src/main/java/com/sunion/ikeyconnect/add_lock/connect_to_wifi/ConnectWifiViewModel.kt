@@ -8,7 +8,7 @@ import com.sunion.ikeyconnect.domain.blelock.BluetoothConnectState
 import com.sunion.ikeyconnect.domain.command.WifiConnectState
 import com.sunion.ikeyconnect.domain.usecase.account.GetClientTokenUseCase
 import com.sunion.ikeyconnect.domain.usecase.account.GetUuidUseCase
-import com.sunion.ikeyconnect.lock.WifiLock
+import com.sunion.ikeyconnect.lock.AllLock
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -38,7 +38,7 @@ class ConnectWifiViewModel @Inject constructor(
     val ssid: String?
         get() = _ssid
 
-    private var lock: WifiLock? = null
+    private var lock: AllLock? = null
 
     private var isConnectingToWifi = false
 
@@ -49,7 +49,7 @@ class ConnectWifiViewModel @Inject constructor(
         _ssid = ssid
 
         viewModelScope.launch(Dispatchers.IO) {
-            lock = lockProvider.getLockByMacAddress(macAddress) as WifiLock?
+            lock = lockProvider.getLockByMacAddress(macAddress) as AllLock?
             collectBleConnectionState()
         }
     }

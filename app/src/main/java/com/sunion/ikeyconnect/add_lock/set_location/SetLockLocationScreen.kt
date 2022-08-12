@@ -32,6 +32,7 @@ import com.sunion.ikeyconnect.ui.theme.FuhsingSmartLockV2AndroidTheme
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import com.sunion.ikeyconnect.R
+import com.sunion.ikeyconnect.ui.component.LoadingScreenDialog
 
 @Composable
 fun SetLockLocationScreen(
@@ -39,22 +40,25 @@ fun SetLockLocationScreen(
     navController: NavController,
 ) {
     val context = LocalContext.current
+    val state = viewModel.uiState.collectAsState().value
     LaunchedEffect(key1 = Unit) {
         viewModel.uiEvent.collect {
             when (it) {
                 SetLockLocationUiEvent.SaveFailed ->
                     Toast.makeText(context, "Save location failure", Toast.LENGTH_SHORT).show()
                 SetLockLocationUiEvent.SaveSuccess ->
-                    navController.navigate("${AddLockRoute.LockOverview.route}/${viewModel.macAddress}")
+                    navController.navigate("${AddLockRoute.LockOverview.route}/${viewModel.macAddress}/${viewModel.deviceType}")
             }
         }
     }
     SetLockLocationScreen(
-        initLocation = viewModel.uiState.collectAsState().value.initLocation,
+        initLocation = state.initLocation,
         onNaviUpClick = navController::popBackStack,
         onConfirmClick = viewModel::setLocationToLock,
         onLocationChange = viewModel::setLocation
     )
+    if (state.isProcessing)
+        LoadingScreenDialog("")
 }
 
 @SuppressLint("MissingPermission")

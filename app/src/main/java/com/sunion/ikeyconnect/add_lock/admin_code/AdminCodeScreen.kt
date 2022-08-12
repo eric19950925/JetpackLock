@@ -36,6 +36,7 @@ import timber.log.Timber
 import com.sunion.ikeyconnect.R
 import com.sunion.ikeyconnect.add_lock.AddLockRoute
 import com.sunion.ikeyconnect.home.HomeRoute
+import com.sunion.ikeyconnect.ui.component.LoadingScreenDialog
 
 @Composable
 fun AdminCodeScreen(viewModel: AdminCodeViewModel, navController: NavController) {
@@ -58,7 +59,7 @@ fun AdminCodeScreen(viewModel: AdminCodeViewModel, navController: NavController)
                 AdminCodeUiEvent.Failed ->
                     if (!viewModel.isLockConnected()) showDisconnectionDialog = true
                 AdminCodeUiEvent.Success ->
-                    navController.navigate("${AddLockRoute.RequestLocation.route}/${viewModel.macAddress}")
+                    navController.navigate("${AddLockRoute.RequestLocation.route}/${viewModel.macAddress}/${viewModel.deviceType}")
             }
         }
     }
@@ -114,6 +115,8 @@ fun AdminCodeScreen(viewModel: AdminCodeViewModel, navController: NavController)
             text = uiState.errorMessage,
             confirmButtonText = stringResource(id = R.string.global_confirm)
         )
+    if (uiState.isProcessing)
+        LoadingScreenDialog("")
 }
 
 @Composable
@@ -149,20 +152,20 @@ fun AdminCodeScreen(
             keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
             modifier = modifier.padding(horizontal = dimensionResource(id = R.dimen.space_28)),
         )
-
-        Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.space_44)))
-        InputTextField(
-            title = stringResource(id = R.string.global_username),
-            value = state.userName,
-            onValueChange = {
-                if (it.length <= 20)
-                    onUserNameChange(it)
-            },
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-            keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
-            modifier = modifier.padding(horizontal = dimensionResource(id = R.dimen.space_28))
-        )
-
+        if(!state.isWiFiLock) {
+            Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.space_44)))
+            InputTextField(
+                title = stringResource(id = R.string.global_username),
+                value = state.userName,
+                onValueChange = {
+                    if (it.length <= 20)
+                        onUserNameChange(it)
+                },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                modifier = modifier.padding(horizontal = dimensionResource(id = R.dimen.space_28))
+            )
+        }
         Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.space_44)))
         var error by remember { mutableStateOf("") }
         val context = LocalContext.current
@@ -249,7 +252,7 @@ private fun PreviewAdminCodeScreen() {
             onTimezoneClick = {},
             onTimezoneItemClick = {},
             onDismissTimeZoneMenu = {},
-            onUserNameChange = {}
+            onUserNameChange = {},
         )
     }
 }
@@ -264,7 +267,8 @@ private fun PreviewAdminCodeScreen2() {
                 adminCode = "12345",
                 timezone = "GMT + 0",
                 isNextEnable = true,
-                showTimezoneMenu = true
+                showTimezoneMenu = true,
+                isWiFiLock = true
             ),
             onNaviUpClick = {},
             onLockNameChange = {},

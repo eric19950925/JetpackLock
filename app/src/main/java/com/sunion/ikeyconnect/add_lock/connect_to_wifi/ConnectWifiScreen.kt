@@ -28,6 +28,7 @@ import com.sunion.ikeyconnect.ui.component.PrimaryButton
 import com.sunion.ikeyconnect.ui.component.ScreenScaffoldWithTopAppBar
 import com.sunion.ikeyconnect.ui.theme.FuhsingSmartLockV2AndroidTheme
 import com.sunion.ikeyconnect.ui.theme.colorPrimaryBoldSize18
+import timber.log.Timber
 
 @Composable
 fun ConnectWifiScreen(viewModel: ConnectWifiViewModel, navController: NavController) {
@@ -36,18 +37,14 @@ fun ConnectWifiScreen(viewModel: ConnectWifiViewModel, navController: NavControl
         viewModel.uiEvent.collect {
             when (it) {
                 ConnectWifiUiEvent.ConnectSuccess ->
-                    navController.navigate("${AddLockRoute.LockOverview.route}/${viewModel.macAddress}")
-//                    navController.navigate("${AddLockRoute.AdminCode.route}/${viewModel.macAddress}")
+//                    navController.navigate("${AddLockRoute.LockOverview.route}/${viewModel.macAddress}")
+                    navController.navigate("${AddLockRoute.AdminCode.route}/${viewModel.macAddress}/wifi")
                 ConnectWifiUiEvent.ConnectFailed ->
                     navController.navigate("${AddLockRoute.Pairing.route}/${viewModel.macAddress}")
                 ConnectWifiUiEvent.BleDisconnected ->
-                    Toast.makeText(context,
-                        context.getString(R.string.global_disconnect),
-                        Toast.LENGTH_SHORT).show()
+                    Timber.d("BleDisconnected")
                 ConnectWifiUiEvent.BleConnecting ->
-                    Toast.makeText(context,
-                        "Connecting",
-                        Toast.LENGTH_SHORT).show()
+                    Timber.d("BleConnecting")
                 ConnectWifiUiEvent.ResetWifi -> {
                     navController.navigate("${AddLockRoute.Pairing.route}/${viewModel.macAddress}")
                 }

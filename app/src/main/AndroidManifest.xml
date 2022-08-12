@@ -5,8 +5,13 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.BLUETOOTH" />
-    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
+    <!--  Android 12  -->
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
     <application
         android:name="com.sunion.ikeyconnect.HiltApplication"
@@ -16,6 +21,9 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.iKeyConnect">
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="@string/maps_api_key" />
         <activity
             android:name="com.sunion.ikeyconnect.MainActivity"
             android:exported="true">
@@ -27,7 +35,7 @@
         </activity>
         <activity
             android:name="com.sunion.ikeyconnect.account.AccountActivity"
-            android:exported="false"
+            android:exported="true"
             android:screenOrientation="portrait" />
     </application>
 

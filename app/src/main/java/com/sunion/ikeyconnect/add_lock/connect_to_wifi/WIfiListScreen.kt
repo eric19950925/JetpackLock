@@ -28,6 +28,7 @@ import com.sunion.ikeyconnect.add_lock.AddLockRoute
 import com.sunion.ikeyconnect.home.HomeRoute
 import com.sunion.ikeyconnect.ui.component.ScreenScaffoldWithTopAppBar
 import com.sunion.ikeyconnect.R
+import com.sunion.ikeyconnect.home.HomeViewModel
 import com.sunion.ikeyconnect.ui.component.IKeyDivider
 import com.sunion.ikeyconnect.ui.theme.FuhsingSmartLockV2AndroidTheme
 
@@ -40,9 +41,9 @@ fun WIfiListScreen(viewModel: WifiListViewModel, navController: NavController) {
         onNaviUpClick = { navController.popBackStack() },
         state = uiState,
         onSkipClick = {
-//            viewModel.setSkip(onComplete = {
-                navController.navigate("${AddLockRoute.AdminCode.route}/${viewModel.macAddress}")
-//            })
+            viewModel.setSkip(onComplete = {
+                navController.navigate("${AddLockRoute.AdminCode.route}/${viewModel.macAddress}/${HomeViewModel.DeviceType.BleMode.typeNum}")
+            })
         },
         onItemClick = { ssid ->
             navController.navigate("${AddLockRoute.ConnectWifi.route}/${viewModel.macAddress}/$ssid")

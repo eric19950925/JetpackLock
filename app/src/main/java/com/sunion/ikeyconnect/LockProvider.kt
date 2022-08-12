@@ -9,7 +9,7 @@ import com.sunion.ikeyconnect.domain.Interface.LockInformationRepository
 import com.sunion.ikeyconnect.domain.LockQRCodeParser
 import com.sunion.ikeyconnect.domain.model.LockInfo
 import com.sunion.ikeyconnect.domain.usecase.account.GetUuidUseCase
-import com.sunion.ikeyconnect.lock.WifiLock
+import com.sunion.ikeyconnect.lock.AllLock
 import kotlinx.coroutines.flow.single
 import kotlinx.coroutines.rx2.asFlow
 import java.time.ZoneId
@@ -20,7 +20,7 @@ import javax.inject.Singleton
 @Singleton
 class LockProvider @Inject constructor(
     private val lockInformationRepository : LockInformationRepository,
-    private val wifiLock: WifiLock,
+    private val allLock: AllLock,
     private val provisionDomain: ProvisionDomain,
     private val getUuid: GetUuidUseCase,
 ) : ILockProvider {
@@ -39,9 +39,9 @@ class LockProvider @Inject constructor(
         val lockInfo = LockInfo.from(lockConnectionInfo)
 
         val lock: Lock = if (getFirmwareModelTraits(lockConnectionInfo.model).contains(SunionTraits.WiFi))
-            wifiLock.init(lockInfo)
+            allLock.init(lockInfo)
         else
-            wifiLock.init(lockInfo)
+            allLock.init(lockInfo)
 //            BleLock(lockInfo)
 
 //        locks[macAddress] = lock
@@ -63,7 +63,7 @@ class LockProvider @Inject constructor(
         val newLock = if (getFirmwareModelTraits(lockInfo.model).contains(SunionTraits.WiFi))
             createWifiLock(lockInfo)
         else
-            wifiLock.init(lockInfo)
+            allLock.init(lockInfo)
 //            BleLock(lockInfo)
 
         if (newLock == null)
@@ -74,11 +74,11 @@ class LockProvider @Inject constructor(
         return newLock
     }
 
-    private suspend fun createWifiLock(lockInfo: LockInfo): WifiLock? {
+    private suspend fun createWifiLock(lockInfo: LockInfo): AllLock? {
         if (lockInfo.serialNumber == null)
             return null
 
-        val wifiLock = wifiLock.init(lockInfo)
+        val newLock = allLock.init(lockInfo)
 
         provisionDomain.provisionCreate(
                 serialNumber = lockInfo.serialNumber,
@@ -91,6 +91,12 @@ class LockProvider @Inject constructor(
         )
 
 
-        return wifiLock
+        return newLock
     }
+
+//    fun getBleLockByUserSync(bleLock: BleLock): AllLock? {
+//        val lockInfo = LockInfo.from(bleLock)
+//        val newLock = allLock.init(lockInfo)
+//        return newLock
+//    }
 }

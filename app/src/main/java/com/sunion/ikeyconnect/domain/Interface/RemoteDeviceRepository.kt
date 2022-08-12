@@ -37,6 +37,12 @@ interface RemoteDeviceRepository {
         clientToken: String
     ): DeviceUpdateResponse
 
+    suspend fun createAdminCode(
+        thingName: String,
+        adminCode: String,
+        clientToken: String
+    ): DeviceUpdateResponse
+
     suspend fun delete(thingName: String, clientToken: String): String
 
     suspend fun checkOrientation(thingName: String, clientToken: String)
@@ -60,6 +66,8 @@ interface RemoteDeviceRepository {
     suspend fun updateStatusNotification(thingName: String, clientToken: String): DeviceUpdateResponse
 
     suspend fun updateVacationMode(thingName: String, enable: Boolean, clientToken: String): DeviceUpdateResponse
+
+    suspend fun updateLocation(thingName: String, latitude: Double, longitude: Double, clientToken: String): DeviceUpdateResponse
 
     suspend fun updateKeyPressBeep(thingName: String, enable: Boolean, clientToken: String): DeviceUpdateResponse
 

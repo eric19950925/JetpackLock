@@ -92,6 +92,29 @@ class RemoteDeviceRepositoryImpl @Inject constructor(
         )
     )
 
+    override suspend fun createAdminCode(
+        thingName: String,
+        adminCode: String,
+        clientToken: String
+    ): DeviceUpdateResponse = deviceAPI.deviceAccessCodeUpdate(
+        DeviceAccessCodeUpdateRequest(
+            deviceIdentity = thingName,
+            codeType = "AdminCode",
+            accessCode = listOf(
+                DeviceAccessCodeUpdateRequest.AccessCode(
+                    name = "CreateAdmin",
+                    newCode = adminCode,
+                    oldCode = null,
+                    attributes = DeviceAccessCodeUpdateRequest.AccessCode.Attributes(
+                        notifyWhenUse = true,
+                        rule = listOf(DeviceAccessCodeUpdateResponse.AccessCode.Attributes.Rule("A",null))
+                    )
+                )
+            ),
+            clientToken = clientToken
+        )
+    )
+
     override suspend fun delete(thingName: String, clientToken: String): String =
         deviceAPI.deviceProvisionDelete(
             DeviceProvisionDeleteRequest(
@@ -168,7 +191,8 @@ class RemoteDeviceRepositoryImpl @Inject constructor(
                         "SecureMode",
                         "Syncing",
                         "Model",
-                        "FirmwareVersion"
+                        "Location",
+                        "FirmwareVersion",
                     ),
                     group = false
                 ),
@@ -250,6 +274,27 @@ class RemoteDeviceRepositoryImpl @Inject constructor(
                 deviceIdentity = thingName,
                 payload = DeviceRegistryUpdateVacationRequest.Payload(
                     attributes = DeviceRegistryUpdateVacationRequest.Payload.Attributes(vacationMode = enable)
+                ),
+                clientToken = clientToken
+            )
+        )
+    }
+
+    override suspend fun updateLocation(
+        thingName: String,
+        latitude: Double,
+        longitude: Double,
+        clientToken: String
+    ): DeviceUpdateResponse {
+        return deviceAPI.deviceRegistryUpdate(
+            DeviceRegistryUpdateLocationRequest(
+                deviceIdentity = thingName,
+                payload = DeviceRegistryUpdateLocationRequest.Payload(
+                    attributes = DeviceRegistryUpdateLocationRequest.Payload.Attributes(
+                        location = RegistryGetResponse.RegistryPayload.RegistryAttributes.LocationInfo(
+                            latitude = latitude,
+                            longitude = longitude,
+                        ))
                 ),
                 clientToken = clientToken
             )

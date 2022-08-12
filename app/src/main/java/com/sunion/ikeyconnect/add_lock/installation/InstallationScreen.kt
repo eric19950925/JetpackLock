@@ -13,10 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Devices
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
@@ -63,16 +61,20 @@ fun InstallationScreen(
         )
         Spacer(modifier = Modifier.weight(1f))
         Text(
-            text = buildAnnotatedString {
-                withStyle(SpanStyle(fontSize = 16.sp, fontWeight = FontWeight.Medium)) {
-                    append(stringResource(id = R.string.add_lock_installation_content_1))
-                }
-                append("\n")
-                withStyle(SpanStyle(fontSize = 14.sp)) {
-                    append(stringResource(id = R.string.add_lock_installation_content_2))
-                }
-            },
-            color = MaterialTheme.colors.primary
+            text = stringResource(id = R.string.add_lock_installation_content_1),
+            style = TextStyle(
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colors.primary,
+            )
+        )
+        Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.space_16)))
+        Text(
+            text = stringResource(id = R.string.add_lock_installation_content_2),
+            style = TextStyle(
+                fontSize = 14.sp,
+                color = MaterialTheme.colors.primary,
+            )
         )
         Spacer(modifier = Modifier.weight(1f))
         PrimaryButton(

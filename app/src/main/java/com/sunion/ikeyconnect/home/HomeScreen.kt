@@ -45,6 +45,9 @@ fun HomeScreen(viewModel: HomeViewModel, navController: NavController){
                 "${HomeRoute.Settings.route}/$deviceIdentity/${viewModel.isConnected(deviceIdentity)}/${viewModel.getBattery(deviceIdentity)}/${viewModel.getDeviceType(deviceIdentity)}"
             )
         },
+        onAutoUnlockClick = {
+            navController.navigate(HomeRoute.AutoUnLock.route)
+        },
         getUpdateTime = viewModel::getUpdateTime,
         onLockNameChange = viewModel::setLockName,
         onPageChangeByUser = viewModel::setCurrentPage,
@@ -67,6 +70,7 @@ fun HomeScreen(
     onPersonClick: () -> Unit,
     onShowGuideClick: () -> Unit,
     onSettingClick: (String) -> Unit,
+    onAutoUnlockClick: (String) -> Unit,
     onLockClick: () -> Unit,
     getUpdateTime: (String) -> Int?,
     onLockNameChange: (String, String) -> Unit,
@@ -153,7 +157,7 @@ fun HomeScreen(
                 Locks(
                     locks = state.locks,
                     pagerState = pagerState,
-                    onAutoUnlockClock = {},
+                    onAutoUnlockClock = onAutoUnlockClick,
                     onManageClick = {},
                     onUserCodeClick = {},
                     onSettingClick = onSettingClick,
@@ -185,6 +189,7 @@ private fun Preview() {
             onPersonClick = {},
             onShowGuideClick = {},
             onSettingClick = {},
+            onAutoUnlockClick = {},
             onLockClick = {},
             getUpdateTime = { 2 },
             onLockNameChange = { _, _ -> },
@@ -204,6 +209,7 @@ private fun Preview2() {
             onPersonClick = {},
             onShowGuideClick = {},
             onSettingClick = {},
+            onAutoUnlockClick = {},
             onLockClick = {},
             getUpdateTime = { 2 },
             onLockNameChange = { _, _ -> },
@@ -224,6 +230,7 @@ private fun Preview3() {
             onPersonClick = {},
             onShowGuideClick = {},
             onSettingClick = {},
+            onAutoUnlockClick = {},
             onLockClick = {},
             getUpdateTime = { 2 },
             onLockNameChange = { _, _ -> },

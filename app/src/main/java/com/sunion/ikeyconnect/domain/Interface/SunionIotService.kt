@@ -42,6 +42,8 @@ interface SunionIotService {
 
     suspend fun updateAdminCode(thingName: String, adminCode: String, oldCode: String, clientToken: String)
 
+    suspend fun createAdminCode(thingName: String, adminCode: String, clientToken: String)
+
     suspend fun delete(thingName: String, clientToken: String)
 
     suspend fun checkOrientation(thingName: String, clientToken: String)
@@ -57,6 +59,8 @@ interface SunionIotService {
     suspend fun updateDeviceRegistry(thingName: String, registryAttributes: RegistryGetResponse.RegistryPayload.RegistryAttributes, clientToken: String): DeviceUpdateResponse
 
     suspend fun updateWiFiSetting(thingName: String, clientToken: String): DeviceUpdateResponse
+
+    suspend fun updateLocation(thingName: String, latitude: Double, longitude: Double, clientToken: String): DeviceUpdateResponse
 
     suspend fun updateAutoLock(thingName: String, enable: Boolean, delay: Int, clientToken: String): DeviceUpdateResponse
 

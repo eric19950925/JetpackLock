@@ -38,8 +38,8 @@ fun ScanLockQRCodeScreen(
     LaunchedEffect(key1 = Unit) {
         viewModel.uiEvent.collect {
             when (it) {
-//                is ScanLockQRCodeUiEvent.Complete -> navController.navigate("${AddLockRoute.Installation.route}/${it.macAddress}")
-                is ScanLockQRCodeUiEvent.Complete -> navController.navigate("${AddLockRoute.Pairing.route}/${it.macAddress}")
+                is ScanLockQRCodeUiEvent.Complete -> navController.navigate("${AddLockRoute.Installation.route}/${it.macAddress}")
+//                is ScanLockQRCodeUiEvent.Complete -> navController.navigate("${AddLockRoute.Pairing.route}/${it.macAddress}")
 
             }
         }

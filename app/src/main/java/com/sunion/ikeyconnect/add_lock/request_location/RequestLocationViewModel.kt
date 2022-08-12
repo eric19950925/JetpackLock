@@ -27,6 +27,10 @@ class RequestLocationViewModel @Inject constructor(
     val macAddress: String?
         get() = _macAddress
 
+    private var _deviceType: Int? = null
+    val deviceType: Int?
+        get() = _deviceType
+
     fun deleteLock() {
         val mac = macAddress ?: return
         flow { emit(lockProvider.getLockByMacAddress(mac)!!.delete(getClientTokenUseCase())) }
@@ -45,8 +49,9 @@ class RequestLocationViewModel @Inject constructor(
         application, Manifest.permission.ACCESS_FINE_LOCATION
     ) == PackageManager.PERMISSION_GRANTED
 
-    fun init(macAddress: String) {
+    fun init(macAddress: String, deviceType: Int) {
         _macAddress = macAddress
+        _deviceType = deviceType
     }
 }
 

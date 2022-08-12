@@ -27,6 +27,18 @@ data class LockInfo(
             serialNumber = content.s
         )
 
+        fun from(bleLock: BleLock): LockInfo = LockInfo(
+            macAddress = bleLock.MACAddress,
+            oneTimeToken = bleLock.OneTimeToken,
+            keyOne = bleLock.ConnectionKey,
+            keyTwo = "",
+            isOwnerToken = false,
+            isFrom = bleLock.SharedFrom,
+            lockName = bleLock.DisplayName,
+            model = "",
+            serialNumber = ""
+        )
+
         fun from(lockConnectionInfo: LockConnectionInformation): LockInfo = LockInfo(
             macAddress = lockConnectionInfo.macAddress,
             oneTimeToken = lockConnectionInfo.oneTimeToken,

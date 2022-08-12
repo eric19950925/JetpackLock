@@ -3,6 +3,7 @@ package com.sunion.ikeyconnect.domain.Interface
 import com.sunion.ikeyconnect.domain.model.Event
 import com.sunion.ikeyconnect.domain.model.LockConfig
 import com.sunion.ikeyconnect.domain.model.LockInfo
+import com.sunion.ikeyconnect.domain.model.LockSetting
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharedFlow
 
@@ -18,7 +19,7 @@ interface Lock {
 
     fun getName(shouldSave: Boolean = false): Flow<String>
 
-//    fun collectLockSetting(): Flow<LockSetting>
+    fun collectLockSetting(): Flow<LockSetting>
 
     fun setTime(epochSecond: Long): Flow<Boolean>
 
@@ -26,26 +27,38 @@ interface Lock {
 
     suspend fun hasAdminCodeBeenSet(): Boolean
 
-    suspend fun changeLockName(name: String, clientToken: String? = null): Boolean
+    suspend fun changeLockNameByBle(name: String): Boolean
 
-    suspend fun setTimeZone(timezone: String, clientToken: String?): Boolean
+    suspend fun setTimeZoneByBle(timezone: String): Boolean
 
     suspend fun changeAdminCode(
+        thingName: String,
+        code: String,
+        lockName: String,
+        timezone: String,
+        clientToken: String,
+    ): Boolean
+
+    suspend fun changeAdminCodeByBle(
+        macAddress: String,
         code: String,
         userName: String,
-        timezone: String,
-        clientToken: String? = null,
+        clientToken: String,
     ): Boolean
 
     suspend fun editToken(index: Int, permission: String, name: String): Boolean
 
-    suspend fun setLocation(latitude: Double, longitude: Double): LockConfig
+    suspend fun setLocation(thingName: String, latitude: Double, longitude: Double, clientToken: String): Boolean
+
+    suspend fun setLocationByBle(latitude: Double, longitude: Double): LockConfig
 
 //    suspend fun getBoltOrientation(clientToken: String? = null): LockOrientation
 
 //    suspend fun getLockSetting(): LockSetting
 
-//    suspend fun getLockConfig(): LockConfig
+    suspend fun getLockConfigByBle(): LockConfig
+
+    suspend fun getLockConfig(thingName: String, clientToken: String): LockConfig
 
     suspend fun delete(clientToken: String? = null)
 

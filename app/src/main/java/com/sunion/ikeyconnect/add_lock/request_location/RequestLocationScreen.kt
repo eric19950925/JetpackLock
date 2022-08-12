@@ -73,9 +73,9 @@ fun RequestLocationScreen(viewModel: RequestLocationViewModel, navController: Na
                     )
                 )
             } else
-                navController.navigate("${AddLockRoute.SetLocation.route}/${viewModel.macAddress}")
+                navController.navigate("${AddLockRoute.SetLocation.route}/${viewModel.macAddress}/${viewModel.deviceType}")
         },
-        onSkipClick = { navController.navigate("${AddLockRoute.LockOverview.route}/${viewModel.macAddress}") })
+        onSkipClick = { navController.navigate("${AddLockRoute.LockOverview.route}/${viewModel.macAddress}/${viewModel.deviceType}") })
 
     if (showExitPromptDialog)
         ExitPromptDialog(

@@ -34,6 +34,7 @@ import com.sunion.ikeyconnect.add_lock.component.AddLockTopAppBar
 import com.sunion.ikeyconnect.add_lock.component.EnableBluetoothDialog
 import com.sunion.ikeyconnect.add_lock.component.ExitPromptDialog
 import com.sunion.ikeyconnect.home.HomeRoute
+import com.sunion.ikeyconnect.home.HomeViewModel
 import com.sunion.ikeyconnect.ui.component.PrimaryButton
 import com.sunion.ikeyconnect.ui.theme.FuhsingSmartLockV2AndroidTheme
 
@@ -116,7 +117,7 @@ fun PairingScreen(
                         if (uiState.lockIsWifi)
                             "${AddLockRoute.WifiList.route}/${viewModel.macAddress}"
                         else
-                            "${AddLockRoute.AdminCode.route}/${viewModel.macAddress}"
+                            "${AddLockRoute.AdminCode.route}/${viewModel.macAddress}/${HomeViewModel.DeviceType.Ble.typeNum}"
                     )
                 else
                     navController.navigate(HomeRoute.Home.route)

@@ -3,6 +3,7 @@ package com.sunion.ikeyconnect.domain.exception
 import android.content.Context
 import android.os.Looper
 import android.widget.Toast
+import com.jakewharton.processphoenix.ProcessPhoenix
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -25,7 +26,10 @@ class ToastHttpException @Inject constructor(content: Context){
                 when(e.code()){
                     400 -> "API:$apiName Bad Request"
 
-                    401 -> "API:$apiName Unauthorized"
+                    401 -> {
+                        ProcessPhoenix.triggerRebirth(mContext)
+                        "API:$apiName Unauthorized"
+                    }
 
                     else -> "API:$apiName HttpException"
                 }

@@ -27,6 +27,7 @@ data class RegistryGetResponse(
             @SerializedName("Timezone") val timezone: Timezone,
             @SerializedName("VacationMode") val vacationMode: Boolean,
             @SerializedName("WiFi") val wifi: WiFiInfo,
+            @SerializedName("Location") val location: LocationInfo,
             @SerializedName("Bluetooth") val bluetooth: Bluetooth?,
 
         ){
@@ -38,6 +39,10 @@ data class RegistryGetResponse(
                 @SerializedName("Passphrase") val passphrase: String,
                 @SerializedName("SSID") val SSID: String,
                 @SerializedName("Security") val security: String,
+            )
+            data class LocationInfo(
+                @SerializedName("Latitude") val latitude: Double,
+                @SerializedName("Longitude") val longitude: Double,
             )
             data class Bluetooth(
                 @SerializedName("BroadcastName") val broadcastName: String,
@@ -80,6 +85,20 @@ data class DeviceRegistryUpdateVacationRequest(
     ) : DeviceRegistryRequestPayload() {
         data class Attributes(
             @SerializedName("VacationMode") val vacationMode: Boolean,
+        )
+    }
+}
+
+data class DeviceRegistryUpdateLocationRequest(
+    @Transient @SerializedName("DeviceIdentity") override val deviceIdentity: String,
+    @Transient @SerializedName("Payload") override val payload: Payload,
+    @Transient @SerializedName("clientToken") override val clientToken: String,
+) : DeviceRegistryUpdateRequest(deviceIdentity, payload, clientToken) {
+    data class Payload(
+        @SerializedName("Attributes") val attributes: Attributes,
+    ) : DeviceRegistryRequestPayload() {
+        data class Attributes(
+            @SerializedName("Location") val location: RegistryGetResponse.RegistryPayload.RegistryAttributes.LocationInfo,
         )
     }
 }

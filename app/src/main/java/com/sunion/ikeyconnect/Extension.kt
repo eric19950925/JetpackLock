@@ -33,11 +33,15 @@ fun JSONObject.optNullableJSONObject(name: String, fallback: JSONObject? = null)
 
 fun mapDeviceType(deviceType: String): Int {
     return when(deviceType){
-        "wifi" -> HomeViewModel.DeviceType.WiFi.typeNum
-        "ble" -> HomeViewModel.DeviceType.Ble.typeNum
-        "ble mode" -> HomeViewModel.DeviceType.BleMode.typeNum
+        "wifi","1" -> HomeViewModel.DeviceType.WiFi.typeNum
+        "ble","2" -> HomeViewModel.DeviceType.Ble.typeNum
+        "ble mode","3" -> HomeViewModel.DeviceType.BleMode.typeNum
         else -> 0
     }
+}
+
+fun Double.floorSix(): Double {
+    return (((this * 1000000).toInt()).toDouble())/1000000
 }
 
 fun String.getLockState(): Int {

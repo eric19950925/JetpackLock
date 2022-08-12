@@ -47,7 +47,7 @@ data class DeviceAccessCodeUpdateRequest(
     data class AccessCode(
         @SerializedName("Name") val name: String,
         @SerializedName("NewCode") val newCode: String,
-        @SerializedName("OldCode") val oldCode: String,
+        @SerializedName("OldCode") val oldCode: String?,
         @SerializedName("Attributes") val attributes: Attributes,
     ) {
         data class Attributes(

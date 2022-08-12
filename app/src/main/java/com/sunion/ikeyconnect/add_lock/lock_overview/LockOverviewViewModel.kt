@@ -5,17 +5,17 @@ import androidx.lifecycle.viewModelScope
 import com.google.android.gms.maps.model.LatLng
 import com.sunion.ikeyconnect.LockProvider
 import com.sunion.ikeyconnect.add_lock.ProvisionDomain
+import com.sunion.ikeyconnect.domain.Interface.AuthRepository
 import com.sunion.ikeyconnect.domain.Interface.LockInformationRepository
 import com.sunion.ikeyconnect.domain.exception.ToastHttpException
-import com.sunion.ikeyconnect.domain.model.BleLock
 import com.sunion.ikeyconnect.domain.usecase.account.GetIdTokenUseCase
 import com.sunion.ikeyconnect.domain.usecase.account.GetIdentityIdUseCase
 import com.sunion.ikeyconnect.domain.usecase.account.GetUuidUseCase
 import com.sunion.ikeyconnect.domain.usecase.home.*
+import com.sunion.ikeyconnect.home.HomeViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.rx2.asFlow
 import timber.log.Timber
@@ -31,6 +31,7 @@ class LockOverviewViewModel @Inject constructor(
     private val getUuid: GetUuidUseCase,
     private val provisionDomain: ProvisionDomain,
     private val toastHttpException: ToastHttpException,
+    private val authRepository: AuthRepository,
 ) :
     ViewModel() {
     private val _uiState = MutableStateFlow(LockOverviewUiState())
@@ -40,95 +41,78 @@ class LockOverviewViewModel @Inject constructor(
     val macAddress: String?
         get() = _macAddress
 
-    @OptIn(FlowPreview::class)
-    fun init(macAddress: String) {
-        _macAddress = macAddress
-//        flow { emit(lockProvider.getLockByMacAddress(macAddress)) }
-//            .flatMapConcat { flow { emit(it!!.getLockConfig()) } }
-//            .flowOn(Dispatchers.IO)
-//            .onEach {
-//                if (it.latitude != null && it.longitude != null) {
-//                    Timber.d("LockOverview - latitude:${it.latitude}, longitude:${it.longitude}")
-//                    _uiState.update { state ->
-//                        state.copy(location = LatLng(it.latitude!!, it.longitude!!))
-//                    }
-//                }
-//            }
-//            .catch { Timber.e(it) }
-//            .launchIn(viewModelScope)
+    private var _deviceType: Int? = null
+    val deviceType: Int?
+        get() = _deviceType
 
-        lockInformationRepository.get(macAddress).toObservable()
-            .asFlow()
+    @OptIn(FlowPreview::class)
+    fun init(macAddress: String, deviceType: Int) {
+        _macAddress = macAddress
+        _deviceType = deviceType
+        flow { emit(lockProvider.getLockByMacAddress(macAddress)) }
+            .flatMapConcat {
+                if(deviceType == HomeViewModel.DeviceType.WiFi.typeNum){
+                    Timber.d("LockOverviewViewModel - getLockConfig")
+                    flow { emit(it!!.getLockConfig(provisionDomain.provisionThingName, getUuid.invoke())) }
+                }
+                else {
+                    flow { emit(it!!.getLockConfigByBle()) }
+                }
+            }
             .flowOn(Dispatchers.IO)
             .onEach {
-                Timber.d(it.toString())
-                _uiState.update { state ->
-                    state.copy(
-                        lockName = it.displayName,
-                        userName = it.tokenName.takeIf { s -> s.isNotBlank() } ?: "New User"
-                    )
-                }
-                if(provisionDomain.provisionThingName == "") {
-                    updateUserSyncForBleLock(
-                        UserSyncOrder(DeviceIdentity = it.macAddress, DeviceType = if(it.model == "KDW00")"ble mode" else "ble", DisplayName = it.displayName, Order = 0),
-                        BleLock(
-                            MACAddress = it.macAddress, DisplayName = it.displayName,
-                            OneTimeToken = it.oneTimeToken, PermanentToken = it.permanentToken,
-                            ConnectionKey = it.keyOne, SharedFrom = it.sharedFrom?:""
-                        ),
-                    )
+                if (it.latitude != null && it.longitude != null) {
+                    Timber.d("LockOverview - latitude:${it.latitude}, longitude:${it.longitude}")
+                    _uiState.update { state ->
+                        state.copy(location = LatLng(it.latitude, it.longitude))
+                    }
                 }
             }
-
-    }
-    private fun getOrderList(){
-        flow { emit(getIdToken().single()) }
-            .map { idToken ->
-                val identityId = getIdentityId().single()
-                (idToken to identityId)
-            }
-            .map { (idToken, identityId) ->
-                userSync.pubGetUserSync(idToken, identityId, getUuid.invoke())
-            }
-            .flowOn (Dispatchers.IO)
-            .onStart { _uiState.update { it.copy(isLoading = true) } }
-            .onCompletion {
-//                delay(1000)
-//                _uiState.update { it.copy(isLoading = false) }
-            }
-            .catch { e -> toastHttpException(e) }
+            .onStart { _uiState.update { state -> state.copy(isLoading = true) } }
+            .onCompletion { _uiState.update { state -> state.copy(isLoading = false) } }
+            .catch { Timber.e(it) }
             .launchIn(viewModelScope)
-    }
 
-    private fun updateUserSyncForBleLock(newLockInfo: UserSyncOrder, bleLock: BleLock){
         flow { emit(userSync.getUserSync(getUuid.invoke())) }
             .map {
-                val orderData = it.Payload.Dataset.DeviceOrder
-                val bleLockData = it.Payload.Dataset.BLEDevices
-                (orderData to bleLockData)
+                it.Payload.Dataset.DeviceOrder
             }
-            .map { (orderData, bleLockData) ->
-                val newOrderList: MutableList<UserSyncOrder>? = null
-                val newBleLockList: MutableList<BleLock>? = null
-                orderData?.Order?.let { newOrderList?.addAll(it) }
-                bleLockData?.Devices?.let { newBleLockList?.addAll(it) }
-                newLockInfo.let { newOrderList?.add(it) }
-                bleLock.let { newBleLockList?.add(it) }
-                userSync.updateUserSync(getUuid.invoke(), UserSyncRequestPayload(
-                    Dataset = RequestDataset(
-                        DeviceOrder = RequestOrder(newOrderList?:throw Exception("DeviceOrder is null."), orderData?.version?:0),
-                        BLEDevices = RequestDevices(newBleLockList?:throw Exception("BLEDevices is null."), bleLockData?.version?:0)
+            .map { deviceOrder ->
+                if(deviceType == HomeViewModel.DeviceType.WiFi.typeNum){
+                    deviceOrder?.Order?.find { it.DeviceIdentity == provisionDomain.provisionThingName }?.DisplayName
+                }
+                else deviceOrder?.Order?.find { it.DeviceIdentity == macAddress }?.DisplayName
+            }
+            .map { displayName ->
+                _uiState.update { state ->
+                    state.copy(
+                        lockName = displayName ?: "",
+                        userName = authRepository.getName().singleOrNull() ?: ""
                     )
-                ))
+                }
             }
             .flowOn(Dispatchers.IO)
-            .onStart { _uiState.update { it.copy(isLoading = true) } }
-            .onCompletion {
-                delay(1000)
-                _uiState.update { it.copy(isLoading = false) }
-            }
-            .catch { e -> toastHttpException(e) }
+            .onStart { _uiState.update { state -> state.copy(isLoading = true) } }
+            .onCompletion { _uiState.update { state -> state.copy(isLoading = false) } }
+            .catch { Timber.e(it) }
             .launchIn(viewModelScope)
+
+
+        lockInformationRepository
+            .get(macAddress)
+            .map { lock ->
+                lockInformationRepository.delete(lock)
+//                    .andThen(userCodeRepository.deleteAll(lockInfo.macAddress))
+//                    .andThen(eventLogRepository.deleteAll(lockInfo.macAddress))
+//                    .andThen(Single.just(lock.thingName ?: ""))
+            }
+            .toObservable()
+            .asFlow()
+            .flowOn(Dispatchers.IO)
+            .catch { Timber.e(it) }
+            .launchIn(viewModelScope)
+
+        provisionDomain.provisionThingName = ""
     }
 }
 

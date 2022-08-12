@@ -3,11 +3,12 @@ package com.sunion.ikeyconnect.add_lock.connect_to_wifi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sunion.ikeyconnect.LockProvider
+import com.sunion.ikeyconnect.add_lock.ProvisionDomain
 import com.sunion.ikeyconnect.domain.Interface.LockInformationRepository
 import com.sunion.ikeyconnect.domain.Interface.WifiListResult
 import com.sunion.ikeyconnect.domain.blelock.BluetoothConnectState
 import com.sunion.ikeyconnect.domain.usecase.account.GetClientTokenUseCase
-import com.sunion.ikeyconnect.lock.WifiLock
+import com.sunion.ikeyconnect.lock.AllLock
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -19,6 +20,7 @@ class WifiListViewModel @Inject constructor(
     private val getClientTokenUseCase: GetClientTokenUseCase,
     private val lockProvider: LockProvider,
     private val lockInformationRepository: LockInformationRepository,
+    private val provisionDomain: ProvisionDomain,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(WiFiListUiState())
     val uiState: StateFlow<WiFiListUiState> = _uiState
@@ -27,7 +29,7 @@ class WifiListViewModel @Inject constructor(
     val macAddress: String?
         get() = _macAddress
 
-    private var lock: WifiLock? = null
+    private var lock: AllLock? = null
     private var isLockDisconnected = false
     private var scanWifiJob: Job? = null
     private var collectWifiListJob: Job? = null
@@ -36,7 +38,7 @@ class WifiListViewModel @Inject constructor(
         _uiState.value = WiFiListUiState()
         this._macAddress = macAddress
 
-        flow { emit(lockProvider.getLockByMacAddress(macAddress) as WifiLock?) }
+        flow { emit(lockProvider.getLockByMacAddress(macAddress) as AllLock?) }
             .flowOn(Dispatchers.IO)
             .onEach {
                 lock = it
@@ -71,7 +73,7 @@ class WifiListViewModel @Inject constructor(
                         val wifiInfo = WifiInfo(wifi.ssid, wifi.needPassword, 0)
                         _uiState.update {
                             it.copy(wifiList = uiState.value.wifiList.toMutableList()
-                                .apply { add(wifiInfo) })
+                                .apply { add(wifiInfo) }.toSet().toList())
                         }
                     }
                 }
@@ -133,21 +135,18 @@ class WifiListViewModel @Inject constructor(
         }
     }
 
-//    fun setSkip(onComplete: () -> Unit) {
-//        val lock = lock ?: return
-//        viewModelScope.launch(Dispatchers.IO) {
-//            runCatching {
-//                val information =
-//                    lockInformationRepository.get(lock.lockInfo.macAddress).blockingGet()
-//                lockInformationRepository.saveCompletable(information.copy(useWifi = false))
-//                    .blockingAwait()
-//                withContext(Dispatchers.Main) { onComplete() }
-//            }.onFailure {
-//                Timber.e(it)
-//                withContext(Dispatchers.Main) { onComplete() }
-//            }
-//        }
-//    }
+    fun setSkip(onComplete: () -> Unit) {
+        val lock = lock ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching {
+                provisionDomain.provisionThingName = ""
+                withContext(Dispatchers.Main) { onComplete() }
+            }.onFailure {
+                Timber.e(it)
+                withContext(Dispatchers.Main) { onComplete() }
+            }
+        }
+    }
 
 }
 

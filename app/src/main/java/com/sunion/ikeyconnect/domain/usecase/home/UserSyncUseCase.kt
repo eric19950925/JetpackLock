@@ -21,7 +21,7 @@ class UserSyncUseCase @Inject constructor(
     private val iotService: SunionIotService,
 ) {
 
-    private val orderModifierVersion = mutableStateOf<Int>(0)
+    val orderModifierVersion = mutableStateOf<Int>(0)
 
     fun pubGetUserSync(idToken: String, identityId: String, getUuid: String){
         val payload = gson.toJson(
@@ -46,44 +46,6 @@ class UserSyncUseCase @Inject constructor(
         orderModifierVersion.value = version
     }
 
-    /**
-     * 必須把原有清單保留，並加上新裝置資訊，以及version相同，才能update上去
-     */
-    fun pubUpdateUserSyncExample(idToken: String, identityId: String, getUuid: String, bleDeviceInfo: String, deviceOrder: String){
-        val payload = gson.toJson(
-            UserSyncRequestMQTTPayload(
-                API = APIObject.UpdateUserSync.route,
-                RequestBody = GetUserSyncRequestBody(
-                    Payload = UserSyncRequestPayload(
-                        Dataset = RequestDataset(
-                            DeviceOrder = RequestOrder(
-                                listOf(
-                                    UserSyncOrder(DeviceIdentity = "6fee53ef-61b5-4e42-ac8d-e027c75c8fed", DeviceType = "wifi", DisplayName = "Lock name1", Order = 1),
-                                    UserSyncOrder(DeviceIdentity = "002", DeviceType = "ble mode", DisplayName = "Lock name2", Order = 2),
-                                    UserSyncOrder(DeviceIdentity = "003", DeviceType = "ble", DisplayName = "Lock name3", Order = 3),
-                                    UserSyncOrder(DeviceIdentity = "004", DeviceType = "ble", DisplayName = "Lock name4", Order = 4),
-                                ),
-                                expectedVersion = 18
-                            ),
-                            BLEDevices = RequestDevices(
-                                listOf(
-                                    BleLock(MACAddress = "002", DisplayName = "Lock name2", OneTimeToken = "", PermanentToken = "", ConnectionKey = "", SharedFrom = ""),
-                                    BleLock(MACAddress = "003", DisplayName = "Lock name3", OneTimeToken = "", PermanentToken = "", ConnectionKey = "", SharedFrom = ""),
-                                    BleLock(MACAddress = "004", DisplayName = "Lock name4", OneTimeToken = "", PermanentToken = "", ConnectionKey = "", SharedFrom = ""),
-                                ),
-                                expectedVersion = 0
-                            )
-                        )
-                    ),
-                    clientToken = getUuid
-                ),
-                Authorization = idToken,
-            )
-        ).toString()
-        Timber.d(payload)
-
-        mqttManager.publishString(payload, repo.apiPortalTopic(identityId), AWSIotMqttQos.QOS0)
-    }
     fun pubUpdateOrderList(idToken: String, identityId: String, getUuid: String, list: List<UserSyncOrder>){
         val payload = gson.toJson(
             UserSyncRequestMQTTPayload(
@@ -190,10 +152,10 @@ data class UserSyncOrder(
     val DeviceIdentity: String,
     val DeviceType: String,
     var Order: Int,
-    var DisplayName: String,
+    var DisplayName: String = "",
 )
 data class RequestDevices(
-    val Devices: List<BleLock>,
+    val Devices: List<BleLock>?,
     val expectedVersion: Int,
 )
 

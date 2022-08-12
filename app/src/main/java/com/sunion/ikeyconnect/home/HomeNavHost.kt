@@ -2,15 +2,13 @@ package com.sunion.ikeyconnect.home
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.jakewharton.processphoenix.ProcessPhoenix
 import com.sunion.ikeyconnect.account_management.memberGraph
 import com.sunion.ikeyconnect.add_lock.addLockGraph
-import com.sunion.ikeyconnect.settings.SettingsScreen
-import com.sunion.ikeyconnect.settings.SettingsViewModel
+import com.sunion.ikeyconnect.auto_unlock.SetLocationScreen
 import com.sunion.ikeyconnect.settings.settingGraph
 
 @Composable
@@ -20,6 +18,9 @@ fun HomeNavHost(viewModel: HomeViewModel, onLogoutClick: () -> Unit) {
     NavHost(navController = navController, startDestination = HomeRoute.Home.route) {
         composable(HomeRoute.Home.route) {
             HomeScreen(viewModel = viewModel, navController = navController)
+        }
+        composable(HomeRoute.AutoUnLock.route) {
+            SetLocationScreen(navController = navController)
         }
         memberGraph(
             navController = navController,
@@ -34,7 +35,7 @@ fun HomeNavHost(viewModel: HomeViewModel, onLogoutClick: () -> Unit) {
             route = HomeRoute.AddLock.route,
             onAddLockFinish = { macAddress ->
                 viewModel.boltOrientation(macAddress)
-                viewModel.getDeviceList()
+//                viewModel.getDeviceList()
             }
         )
         settingGraph(
@@ -58,4 +59,5 @@ sealed class HomeRoute(val route: String) {
     object AddLock : HomeRoute("AddLock")
     object HomeTest : HomeRoute("HomeTest")
     object Settings : HomeRoute("Settings")
+    object AutoUnLock : HomeRoute("AutoUnLock")
 }

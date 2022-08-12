@@ -5,4 +5,5 @@ sealed class APIObject(val route: String) {
     object GetUserSync: APIObject("user-sync/get")
     object UpdateUserSync: APIObject("user-sync/update")
     object DeviceProvision: APIObject("device-provision")
+    object UpdateDeviceRegistry: APIObject("device-registry/update")
 }

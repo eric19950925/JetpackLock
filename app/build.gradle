@@ -21,6 +21,11 @@ android {
         buildConfigField "String", 'AWS_IOT_CORE_END_POINT', "\"a3jcdl3hkiliu4-ats.iot.us-east-1.amazonaws.com\""
         buildConfigField "String", 'COGNITO_IDENTITY_POOL_ID', "\"us-east-1:8266c1e3-feeb-4795-9e3b-9e6facb2f9ff\""
         buildConfigField "String", 'COGNITO_REGIONS', "\"us-east-1\""
+
+        def securePropertiesFile = rootProject.file("secure.properties")
+        def secureProps = new Properties()
+        secureProps.load(new FileInputStream(securePropertiesFile))
+        resValue "string", "maps_api_key", (secureProps.getProperty("MAPS_API_KEY") ?: "")
     }
 
     buildTypes {
@@ -115,12 +120,14 @@ dependencies {
 
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-rx2:1.6.1"
 
-    implementation "com.polidea.rxandroidble2:rxandroidble:1.13.1"
+    implementation "com.polidea.rxandroidble2:rxandroidble:1.16.0"
 
     // Google map https://github.com/googlemaps/android-maps-ktx
-    implementation  "com.google.maps.android:maps-compose:2.2.1"
-    implementation 'com.google.android.gms:play-services-maps:18.0.2'
+    implementation "com.google.maps.android:maps-compose:2.2.1"
+    implementation 'com.google.android.gms:play-services-maps:18.1.0'
     implementation 'com.google.android.gms:play-services-location:20.0.0'
+    implementation 'com.google.android.gms:play-services-base:18.1.0'
+    implementation 'com.google.android.gms:play-services-basement:18.1.0'
 
     //
     implementation "androidx.recyclerview:recyclerview:1.3.0-beta01"

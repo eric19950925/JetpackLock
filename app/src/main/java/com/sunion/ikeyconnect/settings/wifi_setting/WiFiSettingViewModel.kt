@@ -11,7 +11,7 @@ import com.sunion.ikeyconnect.domain.model.Event
 import com.sunion.ikeyconnect.domain.model.EventState
 import com.sunion.ikeyconnect.domain.usecase.account.GetClientTokenUseCase
 import com.sunion.ikeyconnect.domain.usecase.device.IsBlueToothEnabledUseCase
-import com.sunion.ikeyconnect.lock.WifiLock
+import com.sunion.ikeyconnect.lock.AllLock
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
@@ -54,7 +54,7 @@ class WiFiSettingViewModel @Inject constructor(
         flow { emit(lockProvider.getLockByMacAddress(macAddress)) }
             .onEach {
                 lock = it
-                _uiState.update { state -> state.copy(lockIsWifi = lock is WifiLock) }
+                _uiState.update { state -> state.copy(lockIsWifi = lock is AllLock) }
             }
             .flatMapConcat { it!!.connectionState }
             .flowOn(Dispatchers.IO)
@@ -157,7 +157,7 @@ class WiFiSettingViewModel @Inject constructor(
     fun getThingName(){
         val wifiLock = lock ?: return
         flow{
-            emit((wifiLock as WifiLock).getAndSaveThingName(getClientTokenUseCase()))
+            emit((wifiLock as AllLock).getAndSaveThingName(getClientTokenUseCase()))
         }
             .onEach {
                 Timber.d(it.single())

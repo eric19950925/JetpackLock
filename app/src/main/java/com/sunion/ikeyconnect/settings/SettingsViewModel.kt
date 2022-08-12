@@ -13,7 +13,7 @@ import com.sunion.ikeyconnect.domain.model.sunion_service.payload.RegistryGetRes
 import com.sunion.ikeyconnect.domain.usecase.account.GetClientTokenUseCase
 import com.sunion.ikeyconnect.domain.usecase.account.GetUuidUseCase
 import com.sunion.ikeyconnect.home.HomeViewModel
-import com.sunion.ikeyconnect.lock.WifiLock
+import com.sunion.ikeyconnect.lock.AllLock
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
@@ -67,7 +67,9 @@ class SettingsViewModel @Inject constructor(
         _battery = battery
         _uiState.update { it.copy(macAddressOrThingName = DeviceIdentity, battery = battery,)}
         Timber.d("$deviceIdentity , $isConnected")
-        if(deviceType == HomeViewModel.DeviceType.WiFi.typeNum && isConnected)getRegistry()
+        if(deviceType == HomeViewModel.DeviceType.WiFi.typeNum && isConnected)getRegistry() else {
+            //cmd d6
+        }
     }
 
     fun leaveSettingPage(onNext: () -> Unit) {
@@ -139,9 +141,13 @@ class SettingsViewModel @Inject constructor(
             emit(iotService.delete(deviceIdentity?:throw Exception("deviceIdentity is null"), getUuid.invoke()))
         }
             .flowOn(Dispatchers.IO)
-            .onCompletion { _uiState.update { it.copy(isLoading = false) } }
+            .onCompletion {
+                _uiState.update { it.copy(isLoading = false) }
+                viewModelScope.launch { _uiEvent.emit(SettingsUiEvent.DeleteLockSuccess) }
+            }
             .catch { e ->
                 toastHttpException(e)
+                viewModelScope.launch { _uiEvent.emit(SettingsUiEvent.DeleteLockFail) }
             }.launchIn(viewModelScope)
     }
 
@@ -163,7 +169,7 @@ class SettingsViewModel @Inject constructor(
                 lock = inLock
                 flow {
                     emit(
-                        if (lock is WifiLock)
+                        if (lock is AllLock)
                             inLock
                         else
                             if (!inLock.isConnected()) {
@@ -175,7 +181,7 @@ class SettingsViewModel @Inject constructor(
             }
             .flatMapConcat {
                 when {
-                    it.isConnected() || it is WifiLock -> flow {
+                    it.isConnected() || it is AllLock -> flow {
                         emit(Event(status = EventState.SUCCESS, data = Pair(true, "")))
                     }
                     else -> it.connectionState
@@ -239,6 +245,10 @@ class SettingsViewModel @Inject constructor(
                             macAddress = attributes.bluetooth?.macAddress?:"",
                             connectionKey = attributes.bluetooth?.connectionKey?:"",
                             shareToken = attributes.bluetooth?.shareToken?:""
+                        ),
+                        location = RegistryGetResponse.RegistryPayload.RegistryAttributes.LocationInfo(
+                            latitude = attributes.location.latitude,
+                            longitude = attributes.location.longitude
                         )
                     )
                 }
@@ -404,6 +414,10 @@ data class SettingsUiState(
                 macAddress = "",
                 connectionKey = "",
                 shareToken = ""
+            ),
+            location = RegistryGetResponse.RegistryPayload.RegistryAttributes.LocationInfo(
+                latitude = 0.0,
+                longitude = 0.0
             )
         )
 )
