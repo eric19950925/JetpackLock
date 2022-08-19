@@ -48,11 +48,11 @@ fun Locks(
     locks: List<SunionLock>,
     pagerState: PagerState,
     onAutoUnlockClock: (String) -> Unit,
-    onManageClick: (String) -> Unit,
+    onUsersClick: (String) -> Unit,
     onUserCodeClick: (String) -> Unit,
     onSettingClick: (String) -> Unit,
     onLockClick: () -> Unit,
-    onLockNameChange: (String, String) -> Unit,
+    onLockNameChange: (String) -> Unit,
     getUpdateTime: (String) -> Int?,
     networkAvailable: Boolean,
     onSaveNameClick: (String) -> Unit,
@@ -82,14 +82,14 @@ fun Locks(
                 onLockNameChange = onLockNameChange,
                 onLockClick = onLockClick,
                 onAutoUnlockClock = onAutoUnlockClock,
-                onManageClick = onManageClick,
+                onUsersClick = onUsersClick,
                 onUserCodeClick = onUserCodeClick,
                 onSettingClick = onSettingClick,
                 onSaveNameClick = onSaveNameClick,
                 macAddress = lock.Attributes?.Bluetooth?.MACAddress?:"",
                 isWifi = lock.LockType == HomeViewModel.DeviceType.WiFi.typeNum,
                 name = lock.Attributes?.DeviceName?:lock.BleLockInfo?.DisplayName?:"",
-                permission = "lock.permission",
+                permission = lock.Permission?:DeviceToken.PERMISSION_ALL,
                 loadingLocks = loadingLocks,
             )
         }
@@ -130,10 +130,10 @@ private fun Lock(
     getUpdateTime: (String) -> Int?,
     networkAvailable: Boolean,
     isBleDisconnected: Boolean,
-    onLockNameChange: (String, String) -> Unit,
+    onLockNameChange: (String) -> Unit,
     onLockClick: () -> Unit,
     onAutoUnlockClock: (String) -> Unit,
-    onManageClick: (String) -> Unit,
+    onUsersClick: (String) -> Unit,
     onUserCodeClick: (String) -> Unit,
     onSettingClick: (String) -> Unit,
     onSaveNameClick: (String) -> Unit,
@@ -158,7 +158,7 @@ private fun Lock(
 
         LockName(
             name = name,
-            onLockNameChange = { onLockNameChange(macAddress, it) },
+            onLockNameChange = { onLockNameChange(it) },
             onSaveNameClick = { onSaveNameClick(lock.DeviceIdentity) },
             isEnabled = lock.LockState?.Connected?:false
         )
@@ -170,10 +170,10 @@ private fun Lock(
         ActionRow(
             isDisconnected = isBleDisconnected,
             onAutoUnlockClock = onAutoUnlockClock,
-            onManageClick = onManageClick,
+            onUsersClick = onUsersClick,
             onUserCodeClick = onUserCodeClick,
             onSettingClick = onSettingClick,
-            thingName = lock.DeviceIdentity,
+            deviceIdentity = lock.DeviceIdentity,
             permission = permission,
             macAddress = macAddress
         )
@@ -387,10 +387,10 @@ private fun LockStatusImage(
 private fun ActionRow(
     isDisconnected: Boolean,
     onAutoUnlockClock: (String) -> Unit,
-    onManageClick: (String) -> Unit,
+    onUsersClick: (String) -> Unit,
     onUserCodeClick: (String) -> Unit,
     onSettingClick: (String) -> Unit,
-    thingName: String,
+    deviceIdentity: String,
     permission: String,
     macAddress: String,
 ) {
@@ -400,27 +400,27 @@ private fun ActionRow(
     ) {
         if (!isDisconnected)
             ActionButton(
-                onClick = { if (!isDisconnected) onAutoUnlockClock(macAddress) },
+                onClick = { onAutoUnlockClock(deviceIdentity) },
                 textResId = R.string.toolbar_title_auto_un_lock,
                 iconResId = R.drawable.ic_lock_open_white,
                 modifier = Modifier.alpha(if (isDisconnected) 0f else 1f)
             )
         if (permission == DeviceToken.PERMISSION_ALL && !isDisconnected)
             ActionButton(
-                onClick = { if (!isDisconnected) onManageClick(macAddress) },
+                onClick = { onUsersClick(deviceIdentity) },
                 textResId = R.string.toolbar_users,
                 iconResId = R.drawable.ic_managers,
                 modifier = Modifier.alpha(if (isDisconnected) 0f else 1f)
             )
         if (permission == DeviceToken.PERMISSION_ALL && !isDisconnected)
             ActionButton(
-                onClick = { if (!isDisconnected) onUserCodeClick(macAddress) },
+                onClick = { onUserCodeClick(deviceIdentity) },
                 textResId = R.string.toolbar_user_code,
                 iconResId = R.drawable.ic_user_code,
                 modifier = Modifier.alpha(if (isDisconnected) 0f else 1f)
             )
         ActionButton(
-            onClick = { onSettingClick(thingName) },
+            onClick = { onSettingClick(deviceIdentity) },
             textResId = R.string.toolbar_setting,
             iconResId = R.drawable.ic_setting,
         )
@@ -464,15 +464,15 @@ private fun Preview(@PreviewParameter(LocksPreviewParameterProvider::class) uiSt
             locks = uiState.locks,
             pagerState = rememberPagerState(),
             onAutoUnlockClock = {},
-            onManageClick = {},
+            onUsersClick = {},
             onUserCodeClick = {},
             onSettingClick = {},
             onLockClick = {},
-            onLockNameChange = { _, _ -> },
+            onLockNameChange = { _ -> },
             getUpdateTime = { 2 },
             onSaveNameClick = {},
             networkAvailable = true,
-            loadingLocks = listOf()
+            loadingLocks = listOf(),
         )
     }
 }

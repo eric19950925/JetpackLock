@@ -54,6 +54,7 @@ class MainActivity : AppCompatActivity() {
         try {
             mqttStatefulConnection.unsubscribeAllTopic()
             mqttManager.disconnect()
+            statefulConnection.close()
             Timber.d("mqttDisconnect success.")
         }catch (e: Exception){
             Timber.e( "mqttDisconnect error: $e")

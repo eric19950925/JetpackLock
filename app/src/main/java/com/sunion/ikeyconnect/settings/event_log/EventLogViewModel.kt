@@ -5,14 +5,19 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.sunion.ikeyconnect.LockProvider
 import com.sunion.ikeyconnect.domain.Interface.SunionIotService
 import com.sunion.ikeyconnect.domain.exception.ToastHttpException
 import com.sunion.ikeyconnect.domain.model.sunion_service.EventGetResponse
 import com.sunion.ikeyconnect.domain.usecase.account.GetUuidUseCase
+import com.sunion.ikeyconnect.home.HomeViewModel
+import com.sunion.ikeyconnect.lock.AllLock
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.reactivex.Observable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.rx2.asFlow
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -21,6 +26,7 @@ class EventLogViewModel @Inject constructor(
     private val iotService: SunionIotService,
     private val getUuid: GetUuidUseCase,
     private val toastHttpException: ToastHttpException,
+    private val lockProvider: LockProvider,
 ): ViewModel(){
     private val _uiState = MutableStateFlow(EventLogUiState())
     val uiState: StateFlow<EventLogUiState> = _uiState
@@ -41,12 +47,51 @@ class EventLogViewModel @Inject constructor(
     val deviceName: String?
         get() = _deviceName
 
-    fun init(thingName: String, deviceName: String) {
+
+    fun init(thingName: String, deviceName: String, deviceType: Int) {
         _thingName = thingName
         _deviceName = deviceName
-        getEvent()
+        if(deviceType == HomeViewModel.DeviceType.WiFi.typeNum) getEvent() else getEventByBle(thingName)
         _uiState.update { it.copy(isLoading = true) }
     }
+
+    private fun getEventByBle(deviceIdentity: String) {
+        flow { emit(lockProvider.getLockByMacAddress(deviceIdentity)) }
+            .map { lock ->
+                (lock as AllLock).getTimeZone()
+                lock to (lock as AllLock).getEventQuantity()
+            }
+            .map { (lock, quantity) ->
+                val amountOfLog = if(quantity > 150)150 else quantity
+                Observable
+                    .fromIterable((0..amountOfLog.minus(1)).reversed())
+                    .asFlow()
+                    .flatMapConcat { index -> (lock as AllLock).getEventByBle(index) }
+                    .toList()
+                    .sortedBy { it.eventTimeStamp }
+                    .reversed()
+            }
+            .map {
+                it.forEach { eventlog ->
+                    lockEvents.add(
+                        EventGetResponse.LockGeneral.Events(
+                        Type = eventlog.event.toString(),
+                        Millisecond = eventlog.eventTimeStamp * 1000,
+                        extraDetail = EventGetResponse.LockGeneral.Events.ExtraDetail(
+                            Actor = eventlog.name,
+                            Message = "..."
+                        )
+                    ))
+                }
+                _uiState.update { state -> state.copy(events = lockEvents, isLoading = false) }
+            }
+            .onStart { _uiState.update { it.copy(isLoading = true) } }
+            .onCompletion { _uiState.update { it.copy(isLoading = false) } }
+            .flowOn(Dispatchers.IO)
+            .catch { Timber.e(it) }
+            .launchIn(viewModelScope)
+    }
+
 
     private fun getEvent(){
         flow { emit( iotService.getEvent(

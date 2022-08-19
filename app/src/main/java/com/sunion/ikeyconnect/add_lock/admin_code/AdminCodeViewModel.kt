@@ -122,7 +122,7 @@ class AdminCodeViewModel @Inject constructor(
             }
             else -> {
                 //C7 E7
-                flow { emit( lock.changeAdminCodeByBle(macAddress?: throw Exception("macAddressNull"), state.adminCode, state.userName, getUuid.invoke())) }
+                flow { emit( lock.setAdminCodeByBle(macAddress?: throw Exception("macAddressNull"), state.adminCode, state.userName, getUuid.invoke())) }
                     .onEach { Timber.d("admin code has been set: $it") }
                     .map { lock.changeLockNameByBle(state.lockName) }
                     .map { lock.setTimeZoneByBle(state.timezone) }
@@ -269,7 +269,7 @@ class AdminCodeViewModel @Inject constructor(
                 Timber.d("updateUserSyncForBleLock")
                 _uiState.update { it.copy(isLoading = true) } }
             .onCompletion {
-                delay(1000)
+//                delay(1000)
                 _uiState.update { it.copy(isLoading = false) }
                 _uiEvent.emit(AdminCodeUiEvent.Success)
             }

@@ -35,17 +35,21 @@ fun NavGraphBuilder.settingGraph(
                 navController = navController,
             )
         }
-        composable("${SettingRoute.EventLog.route}/{thingName}/{deviceName}") { backStackEntry ->
+        composable("${SettingRoute.EventLog.route}/{thingName}/{deviceName}/{deviceType}") { backStackEntry ->
             val thingName = backStackEntry.arguments?.getString("thingName") ?: ""
             val deviceName = backStackEntry.arguments?.getString("deviceName") ?: ""
+            val deviceTypeString = backStackEntry.arguments?.getString("deviceType") ?: ""
+            val deviceType = mapDeviceType(deviceTypeString)
             val viewModel = hiltViewModel<EventLogViewModel>()
-            viewModel.thingName ?: viewModel.init(thingName, deviceName)
+            viewModel.thingName ?: viewModel.init(thingName, deviceName, deviceType)
             EventLogScreen(viewModel = viewModel, navController = navController)
         }
-        composable("${SettingRoute.ChangeAdminCode.route}/{thingName}") { backStackEntry ->
+        composable("${SettingRoute.ChangeAdminCode.route}/{thingName}/{deviceType}") { backStackEntry ->
             val thingName = backStackEntry.arguments?.getString("thingName") ?: ""
+            val deviceTypeString = backStackEntry.arguments?.getString("deviceType") ?: ""
+            val deviceType = mapDeviceType(deviceTypeString)
             val viewModel = hiltViewModel<ChangeAdminCodeViewModel>()
-            viewModel.deviceIdentity ?: viewModel.init(thingName)
+            viewModel.deviceIdentity ?: viewModel.init(thingName, deviceType)
             ChangeAdminCodeScreen(viewModel = viewModel, navController = navController)
         }
         composable("${SettingRoute.WiFiSetting.route}/{thingName}/{MACAddress}/{BroadcastName}/{ConnectionKey}/{ShareToken}") { backStackEntry ->

@@ -15,6 +15,7 @@ import com.sunion.ikeyconnect.R
 
 @Composable
 fun SetLocationScreen(
+    viewModel: AutoUnlockViewModel,
     navController: NavController,
 ) {
     val context = LocalContext.current

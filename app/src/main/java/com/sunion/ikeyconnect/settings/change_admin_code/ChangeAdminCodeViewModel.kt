@@ -5,11 +5,14 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.sunion.ikeyconnect.LockProvider
 import com.sunion.ikeyconnect.R
 import com.sunion.ikeyconnect.domain.Interface.SunionIotService
 import com.sunion.ikeyconnect.domain.exception.ToastHttpException
 import com.sunion.ikeyconnect.domain.usecase.account.*
 import com.sunion.ikeyconnect.domain.usecase.device.VerifyAccessCodeStrengthUseCase
+import com.sunion.ikeyconnect.home.HomeViewModel
+import com.sunion.ikeyconnect.lock.AllLock
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
@@ -24,6 +27,7 @@ class ChangeAdminCodeViewModel @Inject constructor(
     private val iotService: SunionIotService,
     private val getUuid: GetUuidUseCase,
     private val toastHttpException: ToastHttpException,
+    private val lockProvider: LockProvider,
 ) : ViewModel() {
 
     private val _isLoading = mutableStateOf(false)
@@ -63,8 +67,13 @@ class ChangeAdminCodeViewModel @Inject constructor(
     val deviceIdentity: String?
         get() = _deviceIdentity
 
-    fun init(DeviceIdentity: String) {
+    private var _deviceType: Int? = null
+    val deviceType: Int?
+        get() = _deviceType
+
+    fun init(DeviceIdentity: String, deviceType: Int) {
         _deviceIdentity = DeviceIdentity
+        _deviceType = deviceType
     }
 
 
@@ -118,6 +127,29 @@ class ChangeAdminCodeViewModel @Inject constructor(
             return
         }
 
+        if(deviceType == HomeViewModel.DeviceType.WiFi.typeNum)checkAdminCode()
+        else changeAdminCodeByBle()
+
+    }
+
+    private fun changeAdminCodeByBle() {
+        flow { emit(lockProvider.getLockByMacAddress(deviceIdentity?:throw Exception("macAddressNull"))) }
+            .map {
+                (it as AllLock).changeAdminCodeByBle(
+                    oldCode = currentPassword.value,
+                    newCode = newPassword.value,
+                )
+                it
+            }
+            .flowOn(Dispatchers.IO)
+            .onStart { _isLoading.value = true }
+            .onCompletion { _isLoading.value = false }
+            .onEach { viewModelScope.launch { _saveSuccess.value = true } }
+            .catch { Timber.e(it) }
+            .launchIn(viewModelScope)
+    }
+
+    private fun checkAdminCode(){
         flow { emit(iotService.getAdminCode(
             thingName = deviceIdentity?:throw Exception("deviceIdentity is null"),
             clientToken = getUuid.invoke(),
@@ -136,10 +168,9 @@ class ChangeAdminCodeViewModel @Inject constructor(
                 toastHttpException(e)
             }
             .launchIn(viewModelScope)
-
     }
 
-    fun changeAdminCode() {
+    private fun changeAdminCode() {
         flow { emit(iotService.updateAdminCode(
             thingName = deviceIdentity?:throw Exception("deviceIdentity is null"),
             clientToken = getUuid.invoke(),

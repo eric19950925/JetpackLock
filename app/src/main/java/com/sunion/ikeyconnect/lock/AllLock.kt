@@ -1,15 +1,12 @@
 package com.sunion.ikeyconnect.lock
 
 import android.util.Base64
-import com.polidea.rxandroidble2.RxBleConnection
-import com.polidea.rxandroidble2.RxBleDevice
 import com.sunion.ikeyconnect.domain.Interface.*
 import com.sunion.ikeyconnect.domain.blelock.BleCmdRepository
 import com.sunion.ikeyconnect.domain.blelock.BluetoothConnectState
 import com.sunion.ikeyconnect.domain.blelock.ReactiveStatefulConnection
 import com.sunion.ikeyconnect.domain.blelock.unSignedInt
-import com.sunion.ikeyconnect.domain.command.GetLockConfigCommand
-import com.sunion.ikeyconnect.domain.command.WifiConnectState
+import com.sunion.ikeyconnect.domain.command.*
 import com.sunion.ikeyconnect.domain.exception.EmptyLockInfoException
 import com.sunion.ikeyconnect.domain.exception.LockStatusException
 import com.sunion.ikeyconnect.domain.exception.UserCodeException
@@ -17,6 +14,7 @@ import com.sunion.ikeyconnect.domain.model.*
 import com.sunion.ikeyconnect.domain.model.DeviceToken.DeviceTokenState.PERMISSION_ALL
 import com.sunion.ikeyconnect.domain.toHex
 import com.sunion.ikeyconnect.domain.usecase.account.GetIdTokenUseCase
+import com.sunion.ikeyconnect.domain.usecase.device.SetTimeUseCase
 import com.sunion.ikeyconnect.unless
 import io.reactivex.Single
 import io.reactivex.disposables.Disposable
@@ -27,42 +25,32 @@ import timber.log.Timber
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.ZonedDateTime
-import java.util.*
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class AllLock @Inject constructor(
+class  AllLock @Inject constructor(
     private val lockInformationRepository: LockInformationRepository,
     private val userCodeRepository: UserCodeRepository,
     private val eventLogRepository: LockEventLogRepository,
     private val statefulConnection: ReactiveStatefulConnection,
     private val iKeyDataTransmission: BleCmdRepository,
+    private val setTime: SetTimeUseCase,
     private val iotService: SunionIotService,
     private val getIdToken: GetIdTokenUseCase,
     ) : Lock {
 
     private var connectionDisposable: Disposable? = null
 
-    private var mLock: LockConnectionInformation? = null
-
     private var _lockInfo: LockInfo? = null
     override val lockInfo: LockInfo
         get() = _lockInfo ?: throw EmptyLockInfoException()
 
-    private var bleDevice: RxBleDevice? = null
     private var lockScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private var rxBleConnection: RxBleConnection? = null
-    private var scanJob: Job? = null
-    private var connectionJob: Job? = null
     private var keyTwo = ""
-    private val wifiCmdUuid = UUID.fromString("de915dce-3539-61ea-ade7-d44a2237601f")
-    private val connectWifiState = mutableListOf<String>()
-    private val _connectionState2 = MutableSharedFlow<BluetoothConnectState>()
     val connectionState2: SharedFlow<BluetoothConnectState> = statefulConnection.connectionState2
 
-//    private val _connectionState = MutableSharedFlow<Event<Pair<Boolean, String>>>()
     override val connectionState: SharedFlow<Event<Pair<Boolean, String>>> = statefulConnection.connectionState
 
     fun init(lockInfo: LockInfo): AllLock {
@@ -88,30 +76,9 @@ class AllLock @Inject constructor(
         TODO("Not yet implemented")
     }
 
-    override fun collectLockSetting(): Flow<LockSetting> {
-        return lockInformationRepository
-            .get(lockInfo.macAddress)
-            .flatMapObservable { lockConnection ->
-                (statefulConnection.setupNotificationsFor(0xD6))
-                    .filter { notification ->
-                        iKeyDataTransmission.decrypt(
-                            Base64.decode(lockConnection.keyTwo, Base64.DEFAULT), notification
-                        )?.let { decrypted ->
-                            decrypted.component3().unSignedInt() == 0xD6
-                        } ?: false
-                    }
-                    .map { notification ->
-                        iKeyDataTransmission.resolveD6(
-                            Base64.decode(lockConnection.keyTwo, Base64.DEFAULT),
-                            notification
-                        )
-                    }
-            }
-            .asFlow()
-    }
 
     override fun setTime(epochSecond: Long): Flow<Boolean> {
-        TODO("Not yet implemented")
+        return setTime.invoke(epochSecond, lockInfo.macAddress).toObservable().asFlow()
     }
 
     override suspend fun getLockName(): String {
@@ -245,7 +212,7 @@ class AllLock @Inject constructor(
             .map { true }
             .single()
 
-    override suspend fun changeAdminCodeByBle(
+    override suspend fun setAdminCodeByBle(
         macAddress: String,
         code: String,
         userName: String,
@@ -295,6 +262,43 @@ class AllLock @Inject constructor(
                                 tokenName = userName,
                                 permission = lockConnection.permission
                             )
+                        )
+                    }
+            }.toObservable().asFlow().single()
+    }
+
+    override suspend fun changeAdminCodeByBle(
+        oldCode: String,
+        newCode: String,
+    ): Boolean {
+        val newBytes = iKeyDataTransmission.stringCodeToHex(newCode)
+        val oldBytes = iKeyDataTransmission.stringCodeToHex(oldCode)
+        val sendBytes = byteArrayOf(oldBytes.size.toByte()) + oldBytes + byteArrayOf(newBytes.size.toByte()) + newBytes
+        return lockInformationRepository
+            .get(lockInfo.macAddress)
+            .flatMap { lockConnection ->
+                keyTwo = lockConnection.keyTwo
+                statefulConnection
+                    .sendCommandThenWaitSingleNotification(
+                        iKeyDataTransmission.createCommand(
+                            0xC8,
+                            Base64.decode(lockConnection.keyTwo, Base64.DEFAULT),
+                            sendBytes
+                        )
+                    )
+                    .filter { notification ->
+                        iKeyDataTransmission.decrypt(
+                            Base64.decode(lockConnection.keyTwo, Base64.DEFAULT), notification
+                        )?.let { decrypted ->
+                            decrypted.component3().unSignedInt() == 0xC8
+                        } ?: false
+                    }
+                    .take(1)
+                    .singleOrError()
+                    .map { notification ->
+                        iKeyDataTransmission.resolveC8(
+                            Base64.decode(lockConnection.keyTwo, Base64.DEFAULT),
+                            notification
                         )
                     }
             }.toObservable().asFlow().single()
@@ -381,7 +385,66 @@ class AllLock @Inject constructor(
         setConfig(config.copy(latitude = latitude, longitude = longitude))
         return getLockConfigByBle()
     }
-    private suspend fun setConfig(setting: LockConfig): Boolean {
+
+    override suspend fun getBoltOrientationByBle(): LockSetting {
+        return lockInformationRepository
+            .get(lockInfo.macAddress)
+            .map {
+                Timber.d("lockConnection: $it")
+                it.keyTwo
+            }
+            .flatMap { keyTwo ->
+                val key = Base64.decode(keyTwo, Base64.DEFAULT)
+                Timber.d("key two: ${key.toHex()}")
+                statefulConnection
+                    .sendCommandThenWaitSingleNotification(
+                        iKeyDataTransmission.createCommand(
+                            0xCC,
+                            Base64.decode(keyTwo, Base64.DEFAULT)
+                        )
+                    )
+                    .filter { notification ->
+                        iKeyDataTransmission.decrypt(
+                            Base64.decode(keyTwo, Base64.DEFAULT), notification
+                        )?.let { decrypted ->
+                            if (decrypted.component3().unSignedInt() == 0xEF) {
+                                throw LockStatusException.AdminCodeNotSetException()
+                            } else decrypted.component3().unSignedInt() == 0xD6
+                        } ?: false
+                    }
+                    .take(1)
+                    .singleOrError()
+                    .flatMap { notification ->
+                        Single.just(
+                            iKeyDataTransmission.resolveD6(
+                                Base64.decode(keyTwo, Base64.DEFAULT),
+                                notification
+                            )
+                        )
+                    }
+                    .map { lockSetting -> lockSetting }
+            }.toObservable().asFlow().single()
+    }
+
+    override suspend fun getLockSetting(): LockSetting {
+        val command = GetLockSettingCommand(iKeyDataTransmission)
+        return lockInformationRepository.get(lockInfo.macAddress).toObservable()
+            .asFlow()
+            .flowOn(Dispatchers.IO)
+            .map{
+                statefulConnection.setupSingleNotificationThenSendCommand(
+                    command.create(it.keyTwo, Unit),
+                    "getLockSettingByBle"
+                )
+                    .filter { notification -> command.match(it.keyTwo, notification) }
+                    .take(1)
+                    .map { notification -> command.parseResult(it.keyTwo, notification) }
+                    .single()
+            }
+            .single()
+    }
+
+    suspend fun setConfig(setting: LockConfig): Boolean {
         val bytes = iKeyDataTransmission.settingBytes(setting)
         Timber.d("setting: ${bytes.toHex()}")
         return lockInformationRepository
@@ -434,14 +497,88 @@ class AllLock @Inject constructor(
 
     override suspend fun getLockConfigByBle(): LockConfig {
         val command = GetLockConfigCommand(iKeyDataTransmission)
-        return statefulConnection.setupSingleNotificationThenSendCommand(
-            command.create(keyTwo, Unit),
-            "getLockConfigByBle"
-        )
-            .filter { notification -> command.match(keyTwo, notification) }
-            .take(1)
-            .map { notification -> command.parseResult(keyTwo, notification) }
+        return lockInformationRepository.get(lockInfo.macAddress).toObservable()
+            .asFlow()
+            .flowOn(Dispatchers.IO)
+            .map{
+                statefulConnection.setupSingleNotificationThenSendCommand(
+                    command.create(it.keyTwo, Unit),
+                    "getLockConfigByBle"
+                )
+                    .filter { notification -> command.match(it.keyTwo, notification) }
+                    .take(1)
+                    .map { notification -> command.parseResult(it.keyTwo, notification) }
+                    .single()
+            }
             .single()
+    }
+
+    suspend fun factoryResetByBle(adminCode: String): Boolean {
+        val command = FactoryResetCommand(iKeyDataTransmission)
+        return lockInformationRepository.get(lockInfo.macAddress).toObservable()
+            .asFlow()
+            .flowOn(Dispatchers.IO)
+            .map{
+                statefulConnection.setupSingleNotificationThenSendCommand(
+                    command.create2(it.keyTwo, adminCode),
+                    "factoryResetByBle"
+                )
+                    .filter { notification -> command.match(it.keyTwo, notification) }
+                    .take(1)
+                    .map { notification -> command.parseResult(it.keyTwo, notification) }
+                    .single()
+            }.single()
+    }
+
+    suspend fun getEventQuantity(): Int {
+        val command = GetEventQuantityCommand(iKeyDataTransmission)
+        return lockInformationRepository.get(lockInfo.macAddress).toObservable()
+            .asFlow()
+            .flowOn(Dispatchers.IO)
+            .map {
+                statefulConnection.setupSingleNotificationThenSendCommand(
+                    command.create(it.keyTwo, Unit),
+                    "getEventQuantity"
+                )
+                    .filter { notification -> command.match(it.keyTwo, notification) }
+                    .take(1)
+                    .map { notification -> command.parseResult(it.keyTwo, notification) }
+                    .single()
+            }.single()
+    }
+
+    suspend fun getEventByBle(index: Int): Flow<EventLog> {
+        val command = GetEventCommand(iKeyDataTransmission)
+        return lockInformationRepository.get(lockInfo.macAddress).toObservable()
+            .asFlow()
+            .flowOn(Dispatchers.IO)
+            .map{
+                statefulConnection.setupSingleNotificationThenSendCommand(
+                    command.create2(it.keyTwo, index),
+                    "getLockEventLogByBle"
+                )
+                    .filter { notification -> command.match(it.keyTwo, notification) }
+                    .take(1)
+                    .map { notification -> command.parseResult(it.keyTwo, notification) }
+                    .single()
+            }
+    }
+
+    suspend fun getTimeZone() {
+        val command = GetEventCommand(iKeyDataTransmission)
+        lockInformationRepository.get(lockInfo.macAddress).toObservable()
+            .asFlow()
+            .flowOn(Dispatchers.IO)
+            .map{
+                statefulConnection.setupSingleNotificationThenSendCommand(
+                    command.create(it.keyTwo, Unit),
+                    "getTimeZone"
+                )
+                    .filter { notification -> command.match(it.keyTwo, notification) }
+                    .take(1)
+                    .map { notification -> command.parseResult(it.keyTwo, notification) }
+                    .single()
+            }
     }
 
     override suspend fun getLockConfig(thingName: String, clientToken: String): LockConfig {
@@ -454,7 +591,8 @@ class AllLock @Inject constructor(
                     isAutoLock = it.payload.attributes.autoLock,
                     autoLockTime = it.payload.attributes.autoLockDelay,
                     latitude = it.payload.attributes.location.latitude,
-                    longitude = it.payload.attributes.location.longitude
+                    longitude = it.payload.attributes.location.longitude,
+                    isPreamble = it.payload.attributes.preamble
                 )
             }
             .single()
@@ -466,6 +604,47 @@ class AllLock @Inject constructor(
 //        else
 //            deleteByBle()
     }
+
+    override suspend fun lockByBle(): LockSetting = setLock(LockStatus.LOCKED)
+
+    override suspend fun unlockByBle(): LockSetting = setLock(LockStatus.UNLOCKED)
+
+    private suspend fun setLock(lock: Int): LockSetting {
+        return lockInformationRepository
+            .get(lockInfo.macAddress)
+            .flatMap { lockConnection ->
+                statefulConnection.sendCommandThenWaitSingleNotification(
+                    iKeyDataTransmission.createCommand(
+                        0xD7,
+                        Base64.decode(lockConnection.keyTwo, Base64.DEFAULT),
+                        if (lock == LockStatus.UNLOCKED) byteArrayOf(0x00) else byteArrayOf(0x01)
+                    )
+                )
+                    .filter { notification ->
+                        iKeyDataTransmission.decrypt(
+                            Base64.decode(lockConnection.keyTwo, Base64.DEFAULT), notification
+                        )?.let { decrypted ->
+                            if (decrypted.component3().unSignedInt() == 0xEF) {
+                                throw LockStatusException.AdminCodeNotSetException()
+                            } else decrypted.component3().unSignedInt() == 0xD6
+                        } ?: false
+                    }
+                    .take(1)
+                    .singleOrError()
+                    .flatMap { notification ->
+                        Single.just(
+                            iKeyDataTransmission.resolveD6(
+                                Base64.decode(lockConnection.keyTwo, Base64.DEFAULT),
+                                notification
+                            )
+                        )
+                    }
+            }
+            .toObservable()
+            .asFlow()
+            .single()
+    }
+
     private fun deleteByNetwork(clientToken: String?) {
         lockInformationRepository
             .get(lockInfo.macAddress)

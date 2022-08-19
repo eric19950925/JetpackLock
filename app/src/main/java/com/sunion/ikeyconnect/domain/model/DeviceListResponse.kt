@@ -30,6 +30,7 @@ data class SunionLock (
     val BleLockInfo: BleLock?,
     val LockType: Int,
     val Order: Int,
+    var Permission: String?= DeviceToken.PERMISSION_ALL
 )
 
 data class DeviceAttributes (

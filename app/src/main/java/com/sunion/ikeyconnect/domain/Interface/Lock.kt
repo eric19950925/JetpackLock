@@ -1,9 +1,6 @@
 package com.sunion.ikeyconnect.domain.Interface
 
-import com.sunion.ikeyconnect.domain.model.Event
-import com.sunion.ikeyconnect.domain.model.LockConfig
-import com.sunion.ikeyconnect.domain.model.LockInfo
-import com.sunion.ikeyconnect.domain.model.LockSetting
+import com.sunion.ikeyconnect.domain.model.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharedFlow
 
@@ -18,8 +15,6 @@ interface Lock {
     fun isConnected(): Boolean
 
     fun getName(shouldSave: Boolean = false): Flow<String>
-
-    fun collectLockSetting(): Flow<LockSetting>
 
     fun setTime(epochSecond: Long): Flow<Boolean>
 
@@ -39,7 +34,7 @@ interface Lock {
         clientToken: String,
     ): Boolean
 
-    suspend fun changeAdminCodeByBle(
+    suspend fun setAdminCodeByBle(
         macAddress: String,
         code: String,
         userName: String,
@@ -52,9 +47,9 @@ interface Lock {
 
     suspend fun setLocationByBle(latitude: Double, longitude: Double): LockConfig
 
-//    suspend fun getBoltOrientation(clientToken: String? = null): LockOrientation
+    suspend fun getBoltOrientationByBle(): LockSetting
 
-//    suspend fun getLockSetting(): LockSetting
+    suspend fun getLockSetting(): LockSetting
 
     suspend fun getLockConfigByBle(): LockConfig
 
@@ -62,7 +57,9 @@ interface Lock {
 
     suspend fun delete(clientToken: String? = null)
 
-//    suspend fun lock(clientToken: String? = null): LockSetting
+    suspend fun lockByBle(): LockSetting
 
-//    suspend fun unlock(clientToken: String? = null): LockSetting
+    suspend fun unlockByBle(): LockSetting
+
+    suspend fun changeAdminCodeByBle(oldCode: String, newCode: String): Boolean
 }

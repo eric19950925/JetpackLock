@@ -32,6 +32,7 @@ import com.sunion.ikeyconnect.R
 import com.sunion.ikeyconnect.data.getFirmwareModelUrlByString
 import com.sunion.ikeyconnect.domain.model.sunion_service.payload.RegistryGetResponse
 import com.sunion.ikeyconnect.home.HomeRoute
+import com.sunion.ikeyconnect.home.HomeViewModel
 import com.sunion.ikeyconnect.ui.component.*
 import com.sunion.ikeyconnect.ui.theme.FuhsingSmartLockV2AndroidTheme
 import timber.log.Timber
@@ -82,7 +83,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, navController: NavController) {
         },
         onChangeAdminCodeClick = { thingName ->
             viewModel.leaveSettingPage {
-            navController.navigate("${SettingRoute.ChangeAdminCode.route}/$thingName")}
+            navController.navigate("${SettingRoute.ChangeAdminCode.route}/$thingName/${viewModel.deviceType}")}
         },
         onResetBoltDirectionClick = {},
         onWiFiSettingClick = {
@@ -101,7 +102,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, navController: NavController) {
         isConnected = viewModel.isConnected,
         onEventLogClick = { thingName ->
             viewModel.leaveSettingPage {
-            navController.navigate("${SettingRoute.EventLog.route}/$thingName/${uiState.registryAttributes.deviceName}") }
+            navController.navigate("${SettingRoute.EventLog.route}/$thingName/${uiState.registryAttributes.deviceName}/${uiState.deviceType}") }
                           },
     )
 
@@ -215,13 +216,15 @@ fun SettingsScreen(
                     onCheckedChange = { onKeypressBeepClick(!(tempState?.keyPressBeep?:false)) },
                     textStyle = textStyle
                 )
-                IKeyDivider()
-                SettingItemSwitch(
-                    text = stringResource(id = R.string.setting_secure_mode),
-                    checked = tempState?.secureMode?:false,
-                    onCheckedChange = { onSecureModeClick(!(tempState?.secureMode?:false)) },
-                    textStyle = textStyle
-                )
+                if(state.deviceType.equals(HomeViewModel.DeviceType.WiFi.typeNum)){
+                    IKeyDivider()
+                    SettingItemSwitch(
+                        text = stringResource(id = R.string.setting_secure_mode),
+                        checked = tempState?.secureMode?:false,
+                        onCheckedChange = { onSecureModeClick(!(tempState?.secureMode?:false)) },
+                        textStyle = textStyle
+                    )
+                }
                 IKeyDivider()
                 SettingItem {
                     Text(text = stringResource(id = R.string.setting_admin_code), style = textStyle)
@@ -259,34 +262,37 @@ fun SettingsScreen(
                         style = textStyle
                     )
                 }
-                IKeyDivider()
-                SettingItem {
-                    Text(
-                        text = stringResource(id = R.string.setting_wifi_setting),
-                        style = textStyle
-                    )
-                    Spacer(modifier = Modifier
-                        .weight(1f)
-                    )
-                    Image(
-                        painter = painterResource(id = R.drawable.ic_arrow_back),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .rotate(180f)
-                            .size(dimensionResource(id = R.dimen.space_24))
-                            .padding(4.dp)
-                            .clickable(onClick = { onWiFiSettingClick() }),
-                    )
+                if(state.deviceType.equals(HomeViewModel.DeviceType.WiFi.typeNum)){
+                    IKeyDivider()
+                    SettingItem {
+                        Text(
+                            text = stringResource(id = R.string.setting_wifi_setting),
+                            style = textStyle
+                        )
+                        Spacer(modifier = Modifier
+                            .weight(1f)
+                        )
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_arrow_back),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .rotate(180f)
+                                .size(dimensionResource(id = R.dimen.space_24))
+                                .padding(4.dp)
+                                .clickable(onClick = { onWiFiSettingClick() }),
+                        )
+                    }
                 }
                 IKeyDivider()
-
-                SettingItem(
-                    modifier = Modifier
-                        .background(colorResource(R.color.light_primary))
-                        .clickable(onClick = onDeleteClick)
-                ) {
-                    Text(text = stringResource(id = R.string.setting_delete_lock), style = textStyle)
-                }
+            }
+            SettingItem(
+                modifier = Modifier
+                    .background(colorResource(R.color.light_primary))
+                    .clickable(onClick = onDeleteClick)
+            ) {
+                Text(text = stringResource(id = R.string.setting_delete_lock), style = textStyle)
+            }
+            if(isConnected) {
                 IKeyDivider()
                 SettingItem(
                     modifier = Modifier
@@ -453,7 +459,7 @@ private fun SettingAutoLockItem(
 
 
 @Composable
-private fun SettingItemSwitch(
+fun SettingItemSwitch(
     text: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
@@ -471,7 +477,7 @@ private fun SettingItemSwitch(
 }
 
 @Composable
-private fun SettingItem(
+fun SettingItem(
     modifier: Modifier = Modifier,
     content: @Composable RowScope.() -> Unit
 ) {

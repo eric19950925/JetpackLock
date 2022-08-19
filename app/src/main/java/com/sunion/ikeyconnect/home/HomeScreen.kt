@@ -45,9 +45,22 @@ fun HomeScreen(viewModel: HomeViewModel, navController: NavController){
                 "${HomeRoute.Settings.route}/$deviceIdentity/${viewModel.isConnected(deviceIdentity)}/${viewModel.getBattery(deviceIdentity)}/${viewModel.getDeviceType(deviceIdentity)}"
             )
         },
-        onAutoUnlockClick = {
-            navController.navigate(HomeRoute.AutoUnLock.route)
+        onAutoUnlockClick = { deviceIdentity ->
+            navController.navigate(
+                "${HomeRoute.AutoUnLock.route}/$deviceIdentity/${viewModel.getDeviceType(deviceIdentity)}"
+            )
         },
+        onUsersClick = { deviceIdentity ->
+            navController.navigate(
+                "${HomeRoute.Users.route}/$deviceIdentity/${viewModel.getDeviceType(deviceIdentity)}"
+            )
+        },
+        onUserCodeClick = { deviceIdentity ->
+            navController.navigate(
+                "${HomeRoute.UserCode.route}/$deviceIdentity/${viewModel.getDeviceType(deviceIdentity)}"
+            )
+        },
+        currentPage = uiState.currentPage,
         getUpdateTime = viewModel::getUpdateTime,
         onLockNameChange = viewModel::setLockName,
         onPageChangeByUser = viewModel::setCurrentPage,
@@ -71,10 +84,12 @@ fun HomeScreen(
     onShowGuideClick: () -> Unit,
     onSettingClick: (String) -> Unit,
     onAutoUnlockClick: (String) -> Unit,
+    onUsersClick: (String) -> Unit,
+    onUserCodeClick: (String) -> Unit,
     onLockClick: () -> Unit,
     getUpdateTime: (String) -> Int?,
-    onLockNameChange: (String, String) -> Unit,
-    currentPage: Int = 0,
+    onLockNameChange: (String) -> Unit,
+    currentPage: Int,
     boltToastState: Boolean? = null,
     onPageChangeByUser: (Int) -> Unit = {},
     onDrawerStateChange: (Boolean) -> Unit = {},
@@ -158,15 +173,15 @@ fun HomeScreen(
                     locks = state.locks,
                     pagerState = pagerState,
                     onAutoUnlockClock = onAutoUnlockClick,
-                    onManageClick = {},
-                    onUserCodeClick = {},
+                    onUsersClick = onUsersClick,
+                    onUserCodeClick = onUserCodeClick,
                     onSettingClick = onSettingClick,
                     onLockClick = onLockClick,
                     onLockNameChange = onLockNameChange,
                     getUpdateTime = getUpdateTime,
                     onSaveNameClick = onSaveNameClick,
                     networkAvailable = state.networkAvailable,
-                    loadingLocks = state.loadingLocks
+                    loadingLocks = state.loadingLocks,
                 )
         }
 
@@ -190,9 +205,12 @@ private fun Preview() {
             onShowGuideClick = {},
             onSettingClick = {},
             onAutoUnlockClick = {},
+            onUsersClick = {},
+            onUserCodeClick = {},
             onLockClick = {},
+            currentPage = 0,
             getUpdateTime = { 2 },
-            onLockNameChange = { _, _ -> },
+            onLockNameChange = { _ -> },
             boltToastState = false,
             onSaveNameClick = {}
         )
@@ -210,9 +228,12 @@ private fun Preview2() {
             onShowGuideClick = {},
             onSettingClick = {},
             onAutoUnlockClick = {},
+            onUsersClick = {},
+            onUserCodeClick = {},
             onLockClick = {},
+            currentPage = 0,
             getUpdateTime = { 2 },
-            onLockNameChange = { _, _ -> },
+            onLockNameChange = { _ -> },
             boltToastState = false,
             onSaveNameClick = {}
         )
@@ -231,9 +252,12 @@ private fun Preview3() {
             onShowGuideClick = {},
             onSettingClick = {},
             onAutoUnlockClick = {},
+            onUsersClick = {},
+            onUserCodeClick = {},
+            currentPage = 0,
             onLockClick = {},
             getUpdateTime = { 2 },
-            onLockNameChange = { _, _ -> },
+            onLockNameChange = { _ -> },
             boltToastState = false,
             onSaveNameClick = {}
         )

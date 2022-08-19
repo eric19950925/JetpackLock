@@ -6,20 +6,26 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sunion.ikeyconnect.LockProvider
 import com.sunion.ikeyconnect.domain.Interface.Lock
+import com.sunion.ikeyconnect.domain.Interface.LockInformationRepository
 import com.sunion.ikeyconnect.domain.Interface.SunionIotService
+import com.sunion.ikeyconnect.domain.blelock.ReactiveStatefulConnection
 import com.sunion.ikeyconnect.domain.exception.ToastHttpException
 import com.sunion.ikeyconnect.domain.model.*
 import com.sunion.ikeyconnect.domain.model.sunion_service.payload.RegistryGetResponse
 import com.sunion.ikeyconnect.domain.usecase.account.GetClientTokenUseCase
 import com.sunion.ikeyconnect.domain.usecase.account.GetUuidUseCase
+import com.sunion.ikeyconnect.domain.usecase.home.*
 import com.sunion.ikeyconnect.home.HomeViewModel
 import com.sunion.ikeyconnect.lock.AllLock
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.rx2.asFlow
 import timber.log.Timber
+import java.util.*
 import javax.inject.Inject
 
 @HiltViewModel
@@ -29,6 +35,9 @@ class SettingsViewModel @Inject constructor(
     private val iotService: SunionIotService,
     private val getUuid: GetUuidUseCase,
     private val toastHttpException: ToastHttpException,
+    private val statefulConnection: ReactiveStatefulConnection,
+    private val lockInformationRepository: LockInformationRepository,
+    private val userSync: UserSyncUseCase,
 ) :
     ViewModel() {
 
@@ -50,6 +59,10 @@ class SettingsViewModel @Inject constructor(
     val deviceIdentity: String?
         get() = _deviceIdentity
 
+    private var _deviceType: Int? = null
+    val deviceType: Int?
+        get() = _deviceType
+
     private val _adminCode = mutableStateOf("")
     val adminCode: State<String> = _adminCode
 
@@ -61,15 +74,82 @@ class SettingsViewModel @Inject constructor(
     val battery: String
         get() = _battery
 
+    private val bleConnectionState: SharedFlow<Event<Pair<Boolean, String>>> = statefulConnection.connectionState
+
     fun init(DeviceIdentity: String, isConnected: Boolean, battery: String, deviceType: Int) {
         _deviceIdentity = DeviceIdentity
         _isConnected = isConnected
         _battery = battery
-        _uiState.update { it.copy(macAddressOrThingName = DeviceIdentity, battery = battery,)}
+        _deviceType = deviceType
+        _uiState.update { it.copy(macAddressOrThingName = DeviceIdentity, battery = battery, deviceType = deviceType)}
         Timber.d("$deviceIdentity , $isConnected")
-        if(deviceType == HomeViewModel.DeviceType.WiFi.typeNum && isConnected)getRegistry() else {
-            //cmd d6
-        }
+
+        if (deviceType == HomeViewModel.DeviceType.WiFi.typeNum && isConnected) getRegistry()
+        else if (deviceType != HomeViewModel.DeviceType.WiFi.typeNum && isConnected){ getLockSetting(); collectBleLockStateToShow() }
+    }
+
+    private fun collectBleLockStateToShow() {
+        bleConnectionState
+            .onEach { event ->
+                if(event.data?.first == false){
+                    _isConnected = false
+                }
+            }
+            .flowOn(Dispatchers.IO)
+            .catch { Timber.e(it) }
+            .launchIn(viewModelScope)
+    }
+
+    private fun getLockSetting() {
+        flow { emit(lockProvider.getLockByMacAddress(deviceIdentity?:throw Exception("macAddressNull"))) }
+            .map {
+                it?.getLockSetting()
+            }
+            .map { setting ->
+                setting to readVersionByBle()
+            }
+            .map { ( setting, firmwareVersion )->
+                var info : RegistryGetResponse.RegistryPayload.RegistryAttributes? = null
+
+                info = RegistryGetResponse.RegistryPayload.RegistryAttributes(
+                    autoLock = setting?.config?.isAutoLock ?: false,
+                    autoLockDelay = setting?.config?.autoLockTime ?: 1,
+                    deviceName = "BT_Lock",
+                    preamble = setting?.config?.isPreamble ?: false,
+                    secureMode = false,
+                    syncing = false,
+                    model = "",
+                    firmwareVersion = firmwareVersion,
+                    keyPressBeep = setting?.config?.isSoundOn ?: false,
+                    offlineNotifiy = false,
+                    statusNotification = false,
+                    timezone = RegistryGetResponse.RegistryPayload.RegistryAttributes.Timezone(0,""),
+                    vacationMode = setting?.config?.isVacationModeOn ?: false,
+                    wifi = RegistryGetResponse.RegistryPayload.RegistryAttributes.WiFiInfo(
+                        passphrase = "",
+                        SSID = "",
+                        security = ""
+                    ),
+                    bluetooth = RegistryGetResponse.RegistryPayload.RegistryAttributes.Bluetooth(
+                        broadcastName = "",
+                        macAddress = deviceIdentity!!,
+                        connectionKey = "",
+                        shareToken = ""
+                    ),
+                    location = RegistryGetResponse.RegistryPayload.RegistryAttributes.LocationInfo(
+                        latitude = setting?.config?.latitude ?: 0.0,
+                        longitude = setting?.config?.longitude ?: 0.0
+                    )
+                )
+
+                _uiState.update { state -> state.copy(registryAttributes = info ?: throw Exception("RegistryAttributes is mull")) }
+                _newRegistryAttributes.value = info
+            }.flowOn(Dispatchers.IO)
+            .onStart { _uiState.update { it.copy(isLoading = true) } }
+            .onCompletion { _uiState.update { it.copy(isLoading = false) } }
+            .catch { e ->
+                toastHttpException(e)
+            }.launchIn(viewModelScope)
     }
 
     fun leaveSettingPage(onNext: () -> Unit) {
@@ -87,22 +167,49 @@ class SettingsViewModel @Inject constructor(
             onNext()
         }
         else if (newRegistryAttributes.value == null){
-            //disconnect wifi
+            //disconnect mode
             onNext()
         }
         else {
             Timber.d(newRegistryAttributes.value.toString())
-            flow { emit(iotService.updateDeviceRegistry(
-                deviceIdentity?:throw Exception("deviceIdentity is null"),
-                newRegistryAttributes.value?:throw Exception("newRegistryAttributes is null"),
-                getUuid.invoke()
-            )) }
-                .flowOn(Dispatchers.IO)
-                .onStart { _uiState.update { it.copy(isLoading = true) } }
-                .onCompletion { _uiState.update { it.copy(isLoading = false) } ; onNext()}
-                .catch { e ->
-                    toastHttpException(e)
-                }.launchIn(viewModelScope)
+            if(deviceType?.equals(HomeViewModel.DeviceType.WiFi.typeNum) == true){
+                flow { emit(iotService.updateDeviceRegistry(
+                    deviceIdentity?:throw Exception("deviceIdentity is null"),
+                    newRegistryAttributes.value?:throw Exception("newRegistryAttributes is null"),
+                    getUuid.invoke()
+                )) }
+                    .flowOn(Dispatchers.IO)
+                    .onStart { _uiState.update { it.copy(isLoading = true) } }
+                    .onCompletion { _uiState.update { it.copy(isLoading = false) } ; onNext()}
+                    .catch { e ->
+                        toastHttpException(e)
+                    }.launchIn(viewModelScope)
+            }else{
+                if(!isConnected){
+                    toastHttpException(Exception("Ble Lock is disconnect."))
+                    onNext()
+                }
+                else flow { emit(lockProvider.getLockByMacAddress(deviceIdentity?:throw Exception("macAddressNull"))) }
+                    .map {
+                        val config = (it as AllLock).getLockConfigByBle()
+                        (it as AllLock).setConfig(
+                            config.copy(
+                                isVacationModeOn = newRegistryAttributes.value?.vacationMode?:false,
+                                autoLockTime = newRegistryAttributes.value?.autoLockDelay?:1,
+                                isAutoLock = newRegistryAttributes.value?.autoLock?:false,
+                                isPreamble = newRegistryAttributes.value?.preamble?:false,
+                                isSoundOn = newRegistryAttributes.value?.keyPressBeep?:false,
+                            )
+                        )
+                    }
+                    .flowOn(Dispatchers.IO)
+                    .onStart { _uiState.update { it.copy(isLoading = true) } }
+                    .onCompletion { _uiState.update { it.copy(isLoading = false) } ; onNext()}
+                    .catch { e ->
+                        toastHttpException(e)
+                    }.launchIn(viewModelScope)
+            }
+
         }
     }
 
@@ -116,6 +223,71 @@ class SettingsViewModel @Inject constructor(
 
     fun onFactoryResetDialogComfirm(){
         Timber.d("adminCode = ${adminCode.value}")
+        if(deviceType?.equals(HomeViewModel.DeviceType.WiFi.typeNum) == true) factoryReset()
+        else factoryResetByBle(adminCode.value)
+    }
+
+    private fun factoryResetByBle(adminCode: String) {
+        flow { emit(lockProvider.getLockByMacAddress(deviceIdentity?:throw Exception("macAddressNull"))) }
+            .map {
+                (it as AllLock).factoryResetByBle(adminCode)
+            }
+            .map {
+                if(!it)throw Exception("factoryResetFail")
+                deleteBleLock(deviceIdentity?:throw Exception("macAddressNull"))
+                delay(5000)
+                viewModelScope.launch { _uiEvent.emit(SettingsUiEvent.DeleteLockSuccess) }
+            }
+            .onStart { _uiState.update { it.copy(isLoading = true) } }
+            .onCompletion {
+                _uiState.update { it.copy(isLoading = false) }
+            }
+            .flowOn(Dispatchers.IO)
+            .catch {
+                Timber.e(it)
+                viewModelScope.launch { _uiEvent.emit(SettingsUiEvent.DeleteLockFail) }
+            }
+            .launchIn(viewModelScope)
+    }
+
+    private fun deleteBleLock(macAddress: String){
+        Timber.d("deleteBleLock")
+        flow { emit(userSync.getUserSync(getUuid.invoke())) }
+            .map {
+                val bleLockData = it.Payload.Dataset.BLEDevices
+                bleLockData
+            }
+            .map { bleLockData ->
+                val newList = mutableListOf<BleLock>()
+                bleLockData?.Devices?.filter { it.MACAddress != macAddress }?.forEach {
+                    newList.add( it )
+                }
+                userSync.updateUserSync(getUuid.invoke(), UserSyncRequestPayload(
+                    Dataset = RequestDataset(
+                        DeviceOrder = null,
+                        BLEDevices = RequestDevices(newList, bleLockData?.version?:0)
+                    )
+                )
+                )
+            }
+            .map {
+                lockInformationRepository
+                    .get(macAddress)
+                    .map { lock ->
+                        flow { emit(lockInformationRepository.delete(lock))}
+                            .flowOn(Dispatchers.IO)
+                            .catch { Timber.e(it) }
+                            .launchIn(viewModelScope)
+                    }
+            }
+            .flowOn(Dispatchers.IO)
+            .onCompletion {
+                _uiState.update { it.copy(isLoading = false) }
+            }
+            .catch { e -> toastHttpException(e) }
+            .launchIn(viewModelScope)
+    }
+    private fun factoryReset() {
         flow { emit(iotService.getAdminCode(
             deviceIdentity?:throw Exception("deviceIdentity is null"),
             getUuid.invoke()
@@ -194,7 +366,10 @@ class SettingsViewModel @Inject constructor(
                 }
                 it.status == EventState.SUCCESS && it.data?.first == true
             }
-            .flatMapConcat { flow { emit(lock!!.delete(getClientTokenUseCase())) } }
+            .flatMapConcat {
+                if ( deviceType == HomeViewModel.DeviceType.WiFi.typeNum ) flow { emit(lock!!.delete(getClientTokenUseCase())) }
+                else flow { emit(deleteBleLock(macAddress))}
+            }
             .flowOn(Dispatchers.IO)
             .onStart { _uiState.update { it.copy(isLoading = true) } }
             .onCompletion { _uiState.update { it.copy(isLoading = false) } }
@@ -377,12 +552,23 @@ class SettingsViewModel @Inject constructor(
          */
     }
 
+    private suspend fun readVersionByBle(): String {
+        return flow { emit(statefulConnection._rxBleConnection) }
+            .map{
+                it?.readCharacteristic(UUID.fromString("00002a26-0000-1000-8000-00805f9b34fb"))?.toObservable()?.asFlow()?.single()
+            }
+            .map { version ->
+                String(version!!)
+        }.single()
+    }
+
 }
 
 data class SettingsUiState(
     val showDeleteConfirmDialog: Boolean = false,
     val showFactoryResetDialog: Boolean = false,
     val isLoading: Boolean = false,
+    val deviceType: Int = HomeViewModel.DeviceType.WiFi.typeNum,
     val isAutoLockEditClicked: Boolean = false,
     val macAddressOrThingName: String = "",
     val battery: String = "0",

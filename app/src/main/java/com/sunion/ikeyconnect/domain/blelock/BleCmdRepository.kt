@@ -48,6 +48,33 @@ class BleCmdRepository @Inject constructor(){
         }
     }
 
+    enum class D6Features(val byte: Int){
+        SIZE(13),
+        LOCK_ORIENTATION (0),
+        KEYPRESS_BEEP (1),
+        VACATION_MODE (2),
+        AUTOLOCK (3),
+        AUTOLOCK_DELAY ( 4),
+        PREAMBLE (5),
+        LOCK_STATUS (6),
+        BATTERY (7),
+        LOW_BATTERY (8),
+        TIMESTAMP (9)
+    }
+    enum class Config(val byte: Int){
+        SIZE(22),
+        LOCK_ORIENTATION (0),
+        KEYPRESS_BEEP (1),
+        VACATION_MODE (2),
+        AUTOLOCK (3),
+        AUTOLOCK_DELAY ( 4),
+        PREAMBLE (5),
+        LATITUDE_INTEGER (6),
+        LATITUDE_DECIMAL (10),
+        LONGITUDE_INTEGER (14),
+        LONGITUDE_DECIMAL (18)
+    }
+
     @SuppressLint("GetInstance")
     private fun encrypt(key: ByteArray, data: ByteArray): ByteArray? {
         Timber.d("key:\n${key.toHex()}")
@@ -337,34 +364,28 @@ class BleCmdRepository @Inject constructor(){
     }
 
     fun settingBytes(setting: LockConfig): ByteArray {
-        val settingBytes = ByteArray(21)
-        settingBytes[0] = 0xA3.toByte()
-        settingBytes[1] = (if (setting.isSoundOn) 0x01.toByte() else 0x00.toByte())
-        settingBytes[2] = if (setting.isVacationModeOn) 0x01.toByte() else 0x00.toByte()
-        settingBytes[3] = if (setting.isAutoLock) 0x01.toByte() else 0x00.toByte()
-        settingBytes[4] = setting.autoLockTime.toByte()
+        val settingBytes = ByteArray(Config.SIZE.byte)
+        settingBytes[Config.LOCK_ORIENTATION.byte] = 0xA3.toByte()
+        settingBytes[Config.KEYPRESS_BEEP.byte] = (if (setting.isSoundOn) 0x01.toByte() else 0x00.toByte())
+        settingBytes[Config.VACATION_MODE.byte] = if (setting.isVacationModeOn) 0x01.toByte() else 0x00.toByte()
+        settingBytes[Config.AUTOLOCK.byte] = if (setting.isAutoLock) 0x01.toByte() else 0x00.toByte()
+        settingBytes[Config.AUTOLOCK_DELAY.byte] = setting.autoLockTime.toByte()
+        settingBytes[Config.PREAMBLE.byte] = (if (setting.isPreamble) 0x01.toByte() else 0x00.toByte())
 
         val latitudeBigDecimal = BigDecimal.valueOf(setting.latitude ?: 0.0)
         val latitudeIntPartBytes = intToLittleEndianBytes(latitudeBigDecimal.toInt())
-        for (i in 0..latitudeIntPartBytes.lastIndex) settingBytes[5 + i] = latitudeIntPartBytes[i]
-        val latitudeDecimalInt =
-            latitudeBigDecimal.subtract(BigDecimal(latitudeBigDecimal.toInt())).scaleByPowerOfTen(9)
-                .toInt()
+        for (i in 0..latitudeIntPartBytes.lastIndex) settingBytes[Config.LATITUDE_INTEGER.byte + i] = latitudeIntPartBytes[i]
+        val latitudeDecimalInt = latitudeBigDecimal.subtract(BigDecimal(latitudeBigDecimal.toInt())).scaleByPowerOfTen(9).toInt()
         val latitudeDecimalPartBytes = intToLittleEndianBytes(latitudeDecimalInt)
-        for (i in 0..latitudeDecimalPartBytes.lastIndex) settingBytes[9 + i] =
-            latitudeDecimalPartBytes[i]
+        for (i in 0..latitudeDecimalPartBytes.lastIndex) settingBytes[Config.LATITUDE_DECIMAL.byte + i] = latitudeDecimalPartBytes[i]
         Timber.d("latitudeBigDecimal: $latitudeBigDecimal, latitudeIntPart: ${latitudeBigDecimal.toInt()}, latitudeDecimalInt: $latitudeDecimalInt")
 
         val longitudeBigDecimal = BigDecimal.valueOf(setting.longitude ?: 0.0)
         val longitudeIntPartBytes = intToLittleEndianBytes(longitudeBigDecimal.toInt())
-        for (i in 0..longitudeIntPartBytes.lastIndex) settingBytes[13 + i] =
-            longitudeIntPartBytes[i]
-        val longitudeDecimalInt =
-            longitudeBigDecimal.subtract(BigDecimal(longitudeBigDecimal.toInt()))
-                .scaleByPowerOfTen(9).toInt()
+        for (i in 0..longitudeIntPartBytes.lastIndex) settingBytes[Config.LONGITUDE_INTEGER.byte + i] = longitudeIntPartBytes[i]
+        val longitudeDecimalInt = longitudeBigDecimal.subtract(BigDecimal(longitudeBigDecimal.toInt())).scaleByPowerOfTen(9).toInt()
         val longitudeDecimalPartBytes = intToLittleEndianBytes(longitudeDecimalInt)
-        for (i in 0..longitudeDecimalPartBytes.lastIndex) settingBytes[17 + i] =
-            longitudeDecimalPartBytes[i]
+        for (i in 0..longitudeDecimalPartBytes.lastIndex) settingBytes[Config.LONGITUDE_DECIMAL.byte + i] = longitudeDecimalPartBytes[i]
         Timber.d("longitudeBigDecimal: $longitudeBigDecimal longitudeBigDecimal: ${longitudeBigDecimal.toInt()}, longitudeDecimalInt: $longitudeDecimalInt")
 
         return settingBytes
@@ -397,7 +418,7 @@ class BleCmdRepository @Inject constructor(){
     ): ByteArray {
         val sendByte = ByteArray(2)
         sendByte[0] = 0xD5.toByte() // function
-        sendByte[1] = data.size.toByte() // function
+        sendByte[1] = Config.SIZE.byte.toByte() // function
         return encrypt(aesKeyTwo, pad(serial + sendByte + data))
             ?: throw IllegalArgumentException("bytes cannot be null")
     }
@@ -770,26 +791,6 @@ class BleCmdRepository @Inject constructor(){
             }
         } ?: throw IllegalArgumentException("Error when decryption")
     }
-    /**
-     * Resolve [CE] token generated from device.
-     *
-     * @param notification Data return from device.
-     * @return ByteArray represent token.
-     *
-     * */
-    fun resolveCE(aesKeyTwo: ByteArray, notification: ByteArray): Boolean {
-        return decrypt(aesKeyTwo, notification)?.let { decrypted ->
-            if (decrypted.component3().unSignedInt() == 0xCE) {
-                when {
-                    decrypted.component5().unSignedInt() == 0x01 -> true
-                    decrypted.component5().unSignedInt() == 0x00 -> false
-                    else -> throw IllegalArgumentException("Unknown data")
-                }
-            } else {
-                throw IllegalArgumentException("Return function byte is not [C8]")
-            }
-        } ?: throw IllegalArgumentException("Error when decryption")
-    }
 
     /**
      * Resolve [D0] Indicate whether the lock name is.
@@ -884,47 +885,43 @@ class BleCmdRepository @Inject constructor(){
         return aesKeyTwo.let { keyTwo ->
             decrypt(keyTwo, notification)?.let { decrypted ->
                 if (decrypted.component3().unSignedInt() == 0xD4) {
-                    decrypted.copyOfRange(4, 4 + decrypted.component4().unSignedInt())
-                        .let { bytes ->
-                            Timber.d("[D4] ${bytes.toHex()}")
+                    decrypted.copyOfRange(4, 4 + decrypted.component4().unSignedInt()).let { bytes ->
+                        Timber.d("[D4] ${bytes.toHex()}")
 
-                            val latIntPart =
-                                Integer.reverseBytes(ByteBuffer.wrap(bytes.copyOfRange(5, 9)).int)
-                            Timber.d("latIntPart: $latIntPart")
-                            val latDecimalPart =
-                                Integer.reverseBytes(ByteBuffer.wrap(bytes.copyOfRange(9, 13)).int)
-                            val latDecimal = latDecimalPart.toBigDecimal().movePointLeft(9)
-                            Timber.d("latDecimalPart: $latIntPart, latDecimal: $latDecimal")
-                            val lat = latIntPart.toBigDecimal().plus(latDecimal)
-                            Timber.d("lat: $lat, ${lat.toPlainString()}")
+                        val latIntPart = Integer.reverseBytes(ByteBuffer.wrap(bytes.copyOfRange(Config.LATITUDE_INTEGER.byte, Config.LATITUDE_DECIMAL.byte)).int)
+                        Timber.d("latIntPart: $latIntPart")
+                        val latDecimalPart = Integer.reverseBytes(ByteBuffer.wrap(bytes.copyOfRange(Config.LATITUDE_DECIMAL.byte, Config.LONGITUDE_INTEGER.byte)).int)
+                        val latDecimal = latDecimalPart.toBigDecimal().movePointLeft(9)
+                        Timber.d("latDecimalPart: $latIntPart, latDecimal: $latDecimal")
+                        val lat = latIntPart.toBigDecimal().plus(latDecimal)
+                        Timber.d("lat: $lat, ${lat.toPlainString()}")
 
-                            val lngIntPart =
-                                Integer.reverseBytes(ByteBuffer.wrap(bytes.copyOfRange(13, 18)).int)
-                            Timber.d("lngIntPart: $lngIntPart")
-                            val lngDecimalPart =
-                                Integer.reverseBytes(ByteBuffer.wrap(bytes.copyOfRange(17, 21)).int)
-                            val lngDecimal = lngDecimalPart.toBigDecimal().movePointLeft(9)
-                            Timber.d("lngIntPart: $lngIntPart, lngDecimal: $lngDecimal")
-                            val lng = lngIntPart.toBigDecimal().plus(lngDecimal)
-                            Timber.d("lng: $lng, ${lng.toPlainString()}")
+                        val lngIntPart = Integer.reverseBytes(ByteBuffer.wrap(bytes.copyOfRange(Config.LONGITUDE_INTEGER.byte, Config.LONGITUDE_DECIMAL.byte)).int)
+                        Timber.d("lngIntPart: $lngIntPart")
+                        val lngDecimalPart = Integer.reverseBytes(ByteBuffer.wrap(bytes.copyOfRange(Config.LONGITUDE_DECIMAL.byte, Config.SIZE.byte)).int)
+                        val lngDecimal = lngDecimalPart.toBigDecimal().movePointLeft(9)
+                        Timber.d("lngIntPart: $lngIntPart, lngDecimal: $lngDecimal")
+                        val lng = lngIntPart.toBigDecimal().plus(lngDecimal)
+                        Timber.d("lng: $lng, ${lng.toPlainString()}")
 
-                            val lockConfig = LockConfig(
-                                orientation = when (bytes[0].unSignedInt()) {
-                                    0xA0 -> LockOrientation.Right
-                                    0xA1 -> LockOrientation.Left
-                                    0xA2 -> LockOrientation.NotDetermined
-                                    else -> throw LockStatusException.LockOrientationException()
-                                },
-                                isSoundOn = bytes[1].unSignedInt() == 0x01,
-                                isVacationModeOn = bytes[2].unSignedInt() == 0x01,
-                                isAutoLock = bytes[3].unSignedInt() == 0x01,
-                                autoLockTime = bytes[4].unSignedInt(),
-                                latitude = lat.toDouble(),
-                                longitude = lng.toDouble()
-                            )
-                            Timber.d("[D4] lockConfig: $lockConfig")
-                            return lockConfig
-                        }
+                        val lockConfig = LockConfig(
+                            orientation = when (bytes[Config.LOCK_ORIENTATION.byte].unSignedInt()) {
+                                0xA0 -> LockOrientation.Right
+                                0xA1 -> LockOrientation.Left
+                                0xA2 -> LockOrientation.NotDetermined
+                                else -> throw LockStatusException.LockOrientationException()
+                            },
+                            isSoundOn = bytes[Config.KEYPRESS_BEEP.byte].unSignedInt() == 0x01,
+                            isVacationModeOn = bytes[Config.VACATION_MODE.byte].unSignedInt() == 0x01,
+                            isAutoLock = bytes[Config.AUTOLOCK.byte].unSignedInt() == 0x01,
+                            autoLockTime = bytes[Config.AUTOLOCK_DELAY.byte].unSignedInt(),
+                            isPreamble = bytes[Config.PREAMBLE.byte].unSignedInt() == 0x01,
+                            latitude = lat.toDouble(),
+                            longitude = lng.toDouble()
+                        )
+                        Timber.d("[D4] lockConfig: $lockConfig")
+                        return lockConfig
+                    }
                 } else {
                     throw IllegalArgumentException("Return function byte is not [D4]")
                 }
@@ -965,50 +962,43 @@ class BleCmdRepository @Inject constructor(){
             decrypt(keyTwo, notification)?.let { decrypted ->
                 Timber.d("[D6] decrypted: ${decrypted.toHex()}")
                 if (decrypted.component3().unSignedInt() == 0xD6) {
-                    decrypted.copyOfRange(4, 4 + decrypted.component4().unSignedInt())
-                        .let { bytes ->
-                            val autoLockTime = if (bytes[4].unSignedInt() !in 1..90) {
-                                1
-                            } else {
-                                bytes[4].unSignedInt()
-                            }
-                            Timber.d("autoLockTime from lock: $autoLockTime")
-                            val lockSetting = LockSetting(
-                                config = LockConfig(
-                                    orientation = when (bytes[0].unSignedInt()) {
-                                        0xA0 -> LockOrientation.Right
-                                        0xA1 -> LockOrientation.Left
-                                        0xA2 -> LockOrientation.NotDetermined
-                                        else -> throw LockStatusException.LockOrientationException()
-                                    },
-                                    isSoundOn = bytes[1].unSignedInt() == 0x01,
-                                    isVacationModeOn = bytes[2].unSignedInt() == 0x01,
-                                    isAutoLock = bytes[3].unSignedInt() == 0x01,
-                                    autoLockTime = autoLockTime
-                                ),
-                                status = when (bytes[5].unSignedInt()) {
-                                    0 -> UNLOCKED
-                                    1 -> LOCKED
-                                    else -> UNKNOWN
-                                },
-                                battery = bytes[6].unSignedInt(),
-                                batteryStatus = when (bytes[7].unSignedInt()) {
-                                    0 -> BATTERY_GOOD
-                                    1 -> BATTERY_LOW
-                                    else -> BATTERY_ALERT
-                                },
-                                timestamp = Integer.reverseBytes(
-                                    ByteBuffer.wrap(
-                                        bytes.copyOfRange(
-                                            8,
-                                            12
-                                        )
-                                    ).int
-                                ).toLong()
-                            )
-                            Timber.d("[D6] LockSetting: $lockSetting, lockSetting: ${lockSetting.timestamp}")
-                            return lockSetting
+                    decrypted.copyOfRange(4, 4 + decrypted.component4().unSignedInt()).let { bytes ->
+                        val autoLockTime = if (bytes[D6Features.AUTOLOCK_DELAY.byte].unSignedInt() !in 1..90) {
+                            1
+                        } else {
+                            bytes[D6Features.AUTOLOCK_DELAY.byte].unSignedInt()
                         }
+                        Timber.d("autoLockTime from lock: $autoLockTime")
+                        val lockSetting = LockSetting(
+                            config = LockConfig(
+                                orientation = when (bytes[D6Features.LOCK_ORIENTATION.byte].unSignedInt()) {
+                                    0xA0 -> LockOrientation.Right
+                                    0xA1 -> LockOrientation.Left
+                                    0xA2 -> LockOrientation.NotDetermined
+                                    else -> throw LockStatusException.LockOrientationException()
+                                },
+                                isSoundOn = bytes[D6Features.KEYPRESS_BEEP.byte].unSignedInt() == 0x01,
+                                isVacationModeOn = bytes[D6Features.VACATION_MODE.byte].unSignedInt() == 0x01,
+                                isAutoLock = bytes[D6Features.AUTOLOCK.byte].unSignedInt() == 0x01,
+                                autoLockTime = autoLockTime,
+                                isPreamble = bytes[D6Features.PREAMBLE.byte].unSignedInt() == 0x01
+                            ),
+                            status = when (bytes[D6Features.LOCK_STATUS.byte].unSignedInt()) {
+                                0 -> UNLOCKED
+                                1 -> LOCKED
+                                else -> UNKNOWN
+                            },
+                            battery = bytes[D6Features.BATTERY.byte].unSignedInt(),
+                            batteryStatus = when (bytes[D6Features.LOW_BATTERY.byte].unSignedInt()) {
+                                0 -> BATTERY_GOOD
+                                1 -> BATTERY_LOW
+                                else -> BATTERY_ALERT
+                            },
+                            timestamp = Integer.reverseBytes(ByteBuffer.wrap(bytes.copyOfRange(D6Features.TIMESTAMP.byte, D6Features.SIZE.byte)).int).toLong()
+                        )
+                        Timber.d("[D6] LockSetting: $lockSetting, lockSetting: ${lockSetting.timestamp}")
+                        return lockSetting
+                    }
                 } else {
                     throw IllegalArgumentException("Return function byte is not [D6]")
                 }

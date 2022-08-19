@@ -48,8 +48,8 @@ data class Reported (
     val Status: Int,
     val RegistryVersion: Int,
     val AccessCodeTime: Long,
-    val Deadbolt: String,
-    val Direction: String,
+    var Deadbolt: String,
+    var Direction: String,
     val Searchable: Int,
     var Connected: Boolean,
 )

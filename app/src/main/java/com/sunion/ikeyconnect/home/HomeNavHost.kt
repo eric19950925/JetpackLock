@@ -6,10 +6,15 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.jakewharton.processphoenix.ProcessPhoenix
+import com.sunion.ikeyconnect.access_code.userCodeRouter
 import com.sunion.ikeyconnect.account_management.memberGraph
 import com.sunion.ikeyconnect.add_lock.addLockGraph
 import com.sunion.ikeyconnect.auto_unlock.SetLocationScreen
+import com.sunion.ikeyconnect.auto_unlock.autoUnLockGraph
 import com.sunion.ikeyconnect.settings.settingGraph
+import com.sunion.ikeyconnect.users.UsersScreen
+import com.sunion.ikeyconnect.users.UsersViewModel
+import com.sunion.ikeyconnect.users.usersRouter
 
 @Composable
 fun HomeNavHost(viewModel: HomeViewModel, onLogoutClick: () -> Unit) {
@@ -19,9 +24,18 @@ fun HomeNavHost(viewModel: HomeViewModel, onLogoutClick: () -> Unit) {
         composable(HomeRoute.Home.route) {
             HomeScreen(viewModel = viewModel, navController = navController)
         }
-        composable(HomeRoute.AutoUnLock.route) {
-            SetLocationScreen(navController = navController)
-        }
+        usersRouter(
+            navController = navController,
+            route = "${HomeRoute.Users.route}/{macAddress}/{deviceType}",
+        )
+        userCodeRouter(
+            navController = navController,
+            route = "${HomeRoute.UserCode.route}/{macAddress}/{deviceType}",
+        )
+        autoUnLockGraph(
+            navController = navController,
+            route = "${HomeRoute.AutoUnLock.route}/{macAddress}/{deviceType}",
+        )
         memberGraph(
             navController = navController,
             onSignOutSuccess = {
@@ -35,6 +49,7 @@ fun HomeNavHost(viewModel: HomeViewModel, onLogoutClick: () -> Unit) {
             route = HomeRoute.AddLock.route,
             onAddLockFinish = { macAddress ->
                 viewModel.boltOrientation(macAddress)
+                viewModel.turnToTheLastPage()
 //                viewModel.getDeviceList()
             }
         )
@@ -60,4 +75,6 @@ sealed class HomeRoute(val route: String) {
     object HomeTest : HomeRoute("HomeTest")
     object Settings : HomeRoute("Settings")
     object AutoUnLock : HomeRoute("AutoUnLock")
+    object Users : HomeRoute("Users")
+    object UserCode : HomeRoute("UserCode")
 }

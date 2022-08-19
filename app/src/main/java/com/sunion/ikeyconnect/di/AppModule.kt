@@ -21,6 +21,7 @@ import com.sunion.ikeyconnect.domain.Interface.MqttSupPubRepository
 import com.sunion.ikeyconnect.domain.Interface.RemoteDeviceRepository
 import com.sunion.ikeyconnect.domain.Interface.SunionIotService
 import com.sunion.ikeyconnect.domain.exception.ToastHttpException
+import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -161,5 +162,7 @@ object AppModule {
 //        abstract fun bindCognitoRepository(authRepository: CognitoAuthRepository): AuthRepository
 //        @Binds
 //        abstract fun bindPreferenceStore(preferenceStorage: PreferenceStorage): PreferenceStore
+        @Binds
+        abstract fun bindScheduler(appSchedulers: AppSchedulers): Scheduler
     }
 }

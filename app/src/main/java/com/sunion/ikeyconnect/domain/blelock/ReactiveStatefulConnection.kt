@@ -2,17 +2,18 @@ package com.sunion.ikeyconnect.domain.blelock
 
 import android.util.Base64
 import com.polidea.rxandroidble2.*
-import com.polidea.rxandroidble2.scan.ScanSettings
 import com.sunion.ikeyconnect.domain.Interface.SunionWifiService
 import com.sunion.ikeyconnect.domain.Interface.WifiListResult
 import com.sunion.ikeyconnect.domain.blelock.BleCmdRepository.Companion.NOTIFICATION_CHARACTERISTIC
 import com.sunion.ikeyconnect.domain.command.ConnectWifiCommand
+import com.sunion.ikeyconnect.domain.command.GetLockSettingCommand
 import com.sunion.ikeyconnect.domain.command.WifiConnectState
 import com.sunion.ikeyconnect.domain.command.WifiListCommand
 import com.sunion.ikeyconnect.domain.exception.NotConnectedException
 import com.sunion.ikeyconnect.domain.model.Event
 import com.sunion.ikeyconnect.domain.model.EventState
 import com.sunion.ikeyconnect.domain.model.LockInfo
+import com.sunion.ikeyconnect.domain.model.LockSetting
 import com.sunion.ikeyconnect.domain.toHex
 import com.sunion.ikeyconnect.domain.usecase.device.BleHandShakeUseCase
 import io.reactivex.Observable
@@ -24,7 +25,6 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.rx2.asFlow
 import timber.log.Timber
-import java.util.*
 import java.util.concurrent.TimeoutException
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -42,10 +42,11 @@ class ReactiveStatefulConnection @Inject constructor(
     private val connectWifiState = mutableListOf<String>()
     private val _connectionState = MutableSharedFlow<Event<Pair<Boolean, String>>>()
     override val connectionState: SharedFlow<Event<Pair<Boolean, String>>> = _connectionState
+    private val _bleLockState = MutableSharedFlow<LockSetting>()
+    val bleLockState: SharedFlow<LockSetting> = _bleLockState
     private val _connectionState2 = MutableSharedFlow<BluetoothConnectState>()
     val connectionState2: SharedFlow<BluetoothConnectState> = _connectionState2
     private var _connection: Observable<RxBleConnection>? = null
-//    private val connectionTimer = CountDownTimer(30000, 1000)
 
     fun device(input: String): RxBleDevice {
         return rxBleClient.getBleDevice(input)
@@ -55,7 +56,7 @@ class ReactiveStatefulConnection @Inject constructor(
     override var macAddress: String? = null
     override var connectionDisposable: Disposable? = null
     override val disconnectTriggerSubject = PublishSubject.create<Boolean>()
-    private var _rxBleConnection: RxBleConnection? = null
+    var _rxBleConnection: RxBleConnection? = null
     private var _bleDevice: RxBleDevice? = null
     var keyTwo = ""
     override var connection: Observable<RxBleConnection>
@@ -91,11 +92,6 @@ class ReactiveStatefulConnection @Inject constructor(
             scanJob?.cancel()
             emitConnectionState(Event.error(TimeoutException::class.java.simpleName))
         }
-//        rxBleClient.getBleDevice(macAddress)
-//            .let {
-//                observeConnectionStateChanges(it)
-//                connectToDevice(it, macAddress)
-//            }
 
         scanJob?.cancel()
         scanJob =
@@ -112,29 +108,32 @@ class ReactiveStatefulConnection @Inject constructor(
                 .launchIn(lockScope)
     }
 
-    fun connectToDevice(rxBleDevice: RxBleDevice, macAddress: String) {
+    private fun connectToDevice(rxBleDevice: RxBleDevice, macAddress: String) {
         scanJob?.cancel()
         connectionJob?.cancel()
 
-//        connectionTimerJob = coroutineScope.launch {
-//            Timber.d("coroutineScope 30 sec")
-//            delay(30000)
-//            connectionDisposable?.dispose()
-//            _bleDevice = null
-////            lockScope.cancel()
-//            emitConnectionState(Event.error(TimeoutException::class.java.simpleName))
-//        }
+        connectionTimerJob = coroutineScope.launch {
+            Timber.d("coroutineScope 15 sec")
+            delay(15000)
+            connectionDisposable?.dispose()
+            _bleDevice = null
+//            lockScope.cancel()
+            emitConnectionState(Event.error(TimeoutException::class.java.simpleName))
+        }
 
-        connectionJob = rxBleDevice
+         connectionJob = rxBleDevice
             .establishConnection(false)
             .doOnSubscribe { emitConnectionState(Event.loading()) } //too late
             .asFlow()
             .flatMapConcat {
+                connectionTimerJob?.cancel() //avoid to disconnect bluetooth.
                 _rxBleConnection = it
                 it.requestMtu(RxBleConnection.GATT_MTU_MAXIMUM).toObservable().asFlow()
             }
             .flatMapConcat {
-                val info = bleHandShakeUseCase.getLockConnection(macAddress).blockingGet()
+                bleHandShakeUseCase.getLockConnection(macAddress).toObservable().asFlow()
+            }
+             .flatMapConcat { info ->
                 bleHandShakeUseCase.invoke(
                     input1 = info,
                     deviceMacAddress = macAddress,
@@ -142,34 +141,28 @@ class ReactiveStatefulConnection @Inject constructor(
                     input3 = _rxBleConnection!!
                 ).asFlow()
             }
-            .flatMapConcat { permission ->
-//                Timber.d("permission:$permission")
-                connectionTimerJob?.cancel() //avoid to be disconnected bluetooth.
-                emitConnectionState((Event.success(Pair(true, permission))))
-//                delay(1000)
-                bleHandShakeUseCase.getLockConnection(macAddress).toObservable().asFlow()
-            }
-//            .onStart { emitLoading() }
-//            .retry(3) {
-//                delay(2000)
-//                true
-//            }
-            .onEach { info ->
+            .filter { permission -> permission.isNotBlank()}
+             .flatMapConcat { permission ->
+                 Timber.d("connect get permission = $permission")
+                 emitConnectionState((Event.success(Pair(true, permission))))
+                 collectLockSetting()
+                 bleHandShakeUseCase.getLockConnection(macAddress).toObservable().asFlow()
+             }
+             .map { info ->
                 _bleDevice = rxBleDevice
                 keyTwo = info.keyTwo
-//                useWifi = info.useWifi == true
-//                emitSuccess()
-            }
-            .catch {
-//                Timber.tag("WifiLock.connectToDevice").e(it)
+             }
+             .catch {
                 _bleDevice = null
                 emitConnectionState(Event.error(TimeoutException::class.java.simpleName))
-//                emitWifiListState((WiFiListUiState()))
-            }
-            .launchIn(lockScope)
+             }
+             .flowOn(Dispatchers.IO)
+             .launchIn(lockScope)
     }
 
-
+    fun emitConnectStateAfterPairing(){
+        emitConnectionState((Event.success(Pair(true, "A"))))
+    }
 
     private fun emitConnectionState(event: Event<Pair<Boolean, String>>) {
         runBlocking {
@@ -237,17 +230,6 @@ class ReactiveStatefulConnection @Inject constructor(
         }
     }
 
-    fun updateBleDeviceState() {
-//        bleDeviceStateUseCase
-//            .invoke(null)
-//            .subscribeOn(scheduler.single())
-//            .subscribe(
-//                { locks -> _bleDevice.postValue(Event.success(locks)) },
-//                { _bleDevice.postValue(Event.error(it::class.java.simpleName)) }
-//            )
-//            .apply { trashBin.add(this) }
-    }
-
     override fun actionAfterConnectionError(
         error: Throwable,
         macAddress: String,
@@ -292,7 +274,10 @@ class ReactiveStatefulConnection @Inject constructor(
     }
 
     override fun setupNotificationsFor(function: Int): Observable<ByteArray> {
-        TODO("Not yet implemented")
+        return Observable.just(_rxBleConnection).flatMap { rxConnection ->
+            rxConnection.setupNotification(NOTIFICATION_CHARACTERISTIC, NotificationSetupMode.DEFAULT)
+                .flatMap { it }
+        }
     }
 
     override fun addDisposable(disposable: Disposable): Boolean {
@@ -301,11 +286,12 @@ class ReactiveStatefulConnection @Inject constructor(
 
     override fun close() {
         this.macAddress = null
-        emitConnectionState(Event.success(Pair(false, "")))
         disconnectTriggerSubject.onNext(true)
         connectionDisposable?.dispose()
         connectionDisposable = null
         _connection = null
+        _rxBleConnection = null
+        emitDisconnect()
         trashBin.clear()
         coroutineScope.cancel()
     }
@@ -343,6 +329,24 @@ class ReactiveStatefulConnection @Inject constructor(
             .asFlow()
             .filter { connectWifiCommand.match(lockInfo.keyTwo, it) }
             .map { notification -> connectWifiCommand.parseResult(lockInfo.keyTwo, notification) }
+
+    private fun collectLockSetting() {
+        val command = GetLockSettingCommand(mBleCmdRepository)
+        (_rxBleConnection?:throw Exception("_rxBleConnectionNull"))
+            .setupNotification(NOTIFICATION_CHARACTERISTIC)
+            .flatMap { it }
+            .asFlow()
+            .filter { notification -> command.match(keyTwo, notification) }
+            .flatMapConcat { notification ->
+                Timber.tag("@").i("Nice Connect!")
+                flow { emit(command.parseResult(keyTwo, notification)) }}
+            .map {
+                _bleLockState.emit(it)
+            }
+            .flowOn(Dispatchers.IO)
+            .catch { Timber.tag("xxx").e(it) }
+            .launchIn(lockScope)
+    }
 
     override suspend fun connectLockToWifi(ssid: String, password: String, lockInfo: LockInfo): Boolean {
         val connection = _rxBleConnection ?: return false

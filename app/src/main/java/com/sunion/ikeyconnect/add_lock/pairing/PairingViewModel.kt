@@ -70,7 +70,7 @@ class PairingViewModel @Inject constructor(
                 }
 
                 if (connectionState == PairingUiState.ConnectionState.Done) {
-//                    setLockTime(lock)
+                    setLockTime(lock)
 //                    cacheDefaultLockName(lock)
                     event.data?.let { (isConnected, _) ->
                         if (isConnected)

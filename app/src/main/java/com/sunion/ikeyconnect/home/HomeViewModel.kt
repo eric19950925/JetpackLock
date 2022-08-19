@@ -27,6 +27,7 @@ import com.sunion.ikeyconnect.lock.AllLock
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.rx2.asFlow
 import org.json.JSONObject
 import org.json.JSONTokener
 import timber.log.Timber
@@ -78,13 +79,28 @@ class HomeViewModel @Inject constructor(
 
     val bleConnectionState: SharedFlow<Event<Pair<Boolean, String>>> = statefulConnection.connectionState
 
+    val bleLockState: SharedFlow<LockSetting> = statefulConnection.bleLockState
+
     private val _showGuide = mutableStateOf(false)
     val showGuide: State<Boolean> = _showGuide
 
     var currentBleLock: AllLock ?= null
+    var currentBleLockState = Reported(
+        Direction = "orientation",
+        Deadbolt = "deadbolt",
+        Connected = true,
+        Battery = 0,
+        Rssi = 0,
+        RegistryVersion = 0,
+        AccessCodeTime = 0,
+        Searchable = 0,
+        Status = 0,
+    )
 
     override fun onCleared() {
         super.onCleared()
+        currentBleLock?.disconnect()
+
         Timber.tag("HomeViewModel").d("onCleared")
     }
 
@@ -92,6 +108,7 @@ class HomeViewModel @Inject constructor(
         _uiState.update { it.copy(showGuide = !preferenceStore.isGuidePopupMenuPressed) }
 
         collectMqttConnectionState()
+        collectBleLockStateToShow()
 
         // network status
         _uiState.update { it.copy(networkAvailable = isNetworkConnectedUseCase()) }
@@ -189,6 +206,46 @@ class HomeViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
+    private fun updateUserSyncWithBleName(name: String){
+        flow { emit(userSync.getUserSync(getUuid.invoke())) }
+            .map {
+                val orderData = it.Payload.Dataset.DeviceOrder
+                val bleLockData = it.Payload.Dataset.BLEDevices
+                userSync.updateOrderModifyVersion(orderData?.version?:0)
+                (orderData to bleLockData)
+            }
+            .map { (orderData, bleLockData) ->
+                val oldBleDev = bleLockData?.Devices
+                val newBleDev = mutableListOf<BleLock>()
+                oldBleDev?.forEach { oldLock ->
+                    newBleDev.add(
+                        if (oldLock.MACAddress == currentBleLock?.lockInfo?.macAddress) {
+                            BleLock(
+                                MACAddress = oldLock.MACAddress,
+                                DisplayName = name,
+                                ConnectionKey = oldLock.ConnectionKey,
+                                OneTimeToken = oldLock.OneTimeToken,
+                                PermanentToken = oldLock.PermanentToken,
+                                SharedFrom = oldLock.SharedFrom
+                            )
+                        } else oldLock
+                    )
+                }
+                (newBleDev to bleLockData?.version)
+            }
+            .map { (newBleDev, version) ->
+                userSync.updateUserSync(getUuid.invoke(), UserSyncRequestPayload(
+                    Dataset = RequestDataset(
+                        DeviceOrder = null,
+                        BLEDevices = RequestDevices(newBleDev, version?:0)
+                    )
+                ))
+            }
+            .flowOn(Dispatchers.IO)
+            .catch { e -> toastHttpException(e) }
+            .launchIn(viewModelScope)
+    }
+
     private fun callbackMqttApiPortal() = AWSIotMqttNewMessageCallback { _: String?, data: ByteArray? ->
         try {
             val message = String(data?:return@AWSIotMqttNewMessageCallback, Charsets.UTF_8)
@@ -209,12 +266,16 @@ class HomeViewModel @Inject constructor(
                     val payload = Gson().fromJson(payloadString, ResponsePayload::class.java)
                     /**Cloud will response one list one time.*/
                     val version = responseBody.getJSONObject("Payload").getJSONObject("Dataset").optNullableJSONObject("DeviceOrder")?.getInt("version")
-                    userSync.updateOrderModifyVersion(version?:0)
+                    version?.let {
+                        userSync.updateOrderModifyVersion(version)
+                    }
                     orderListPrepare(payload.Dataset.DeviceOrder?.Order, payload.Dataset.BLEDevices?.Devices)
                 }
                 APIObject.UpdateUserSync.route -> {
                     val version = responseBody.getJSONObject("Payload").getJSONObject("Dataset").optNullableJSONObject("DeviceOrder")?.getInt("version")
-                    userSync.updateOrderModifyVersion(version?:0)
+                    version?.let {
+                        userSync.updateOrderModifyVersion(version)
+                    }
 //                    Timber.d(message)
                 }
                 APIObject.DeviceProvision.route -> {
@@ -262,7 +323,7 @@ class HomeViewModel @Inject constructor(
             isBleLockListNeedUpdate = true
             storeBleLocks(it)
         }
-        Timber.d("compareWithDevList >> orderList = $deviceOrderList wifiLocksList = $wifiLocksList")
+        Timber.tag("@").d("compareWithDevList >> orderList = $deviceOrderList, wifiLocksList = $wifiLocksList, bleLocksList = $bleLocksList")
         compareWithDevList(deviceOrderList, wifiLocksList, isBleLockListNeedUpdate, isOrderListNeedUpdate)
     }
 
@@ -293,6 +354,8 @@ class HomeViewModel @Inject constructor(
 
     fun setCurrentPage(page: Int) {
         Timber.d("page:$page")
+        if ( page == uiState.value.currentPage )return
+        currentBleLock?.disconnect()
         _uiState.update { it.copy(currentPage = page) }
         currentIndex = page
     }
@@ -398,11 +461,17 @@ class HomeViewModel @Inject constructor(
                     }
                     DeviceType.Ble.typeNum -> {
                         val bleLock = bleLocksList.find { it.MACAddress == order.DeviceIdentity }?:throw Exception("BleLock's info is null.")
-                        SunionLock(DeviceIdentity = order.DeviceIdentity, null, null, bleLock, DeviceType.Ble.typeNum, order.Order)
+                        if(bleLock.MACAddress == currentBleLock?.lockInfo?.macAddress){
+                            SunionLock(DeviceIdentity = order.DeviceIdentity, null, currentBleLockState, bleLock, DeviceType.Ble.typeNum, order.Order)
+                        }
+                        else SunionLock(DeviceIdentity = order.DeviceIdentity, null, null, bleLock, DeviceType.Ble.typeNum, order.Order)
                     }
                     DeviceType.BleMode.typeNum -> {
                         val bleLock = bleLocksList.find { it.MACAddress == order.DeviceIdentity }?:throw Exception("BleLock's info is null.")
-                        SunionLock(DeviceIdentity = order.DeviceIdentity, null, null, bleLock, DeviceType.BleMode.typeNum, order.Order)
+                        if(bleLock.MACAddress == currentBleLock?.lockInfo?.macAddress){
+                            SunionLock(DeviceIdentity = order.DeviceIdentity, null, currentBleLockState, bleLock, DeviceType.Ble.typeNum, order.Order)
+                        }
+                        else SunionLock(DeviceIdentity = order.DeviceIdentity, null, null, bleLock, DeviceType.BleMode.typeNum, order.Order)
                     }
                     else -> { return@forEach }
                 }
@@ -419,23 +488,25 @@ class HomeViewModel @Inject constructor(
         isBleLockListNeedUpdate: Boolean,
         isOrderListNeedUpdate: Boolean,
     ){
-        var isNeedToUpdateUserSync = false
-        if ( isOrderListNeedUpdate || wifiLocksList.isNotEmpty()) {
-            orderList.filter { it.DeviceType == "wifi" }.let { theOrderList ->
-                if (theOrderList.size != wifiLocksList.size)isNeedToUpdateUserSync = true
-                if (wifiLocksList.all { wifiLock -> theOrderList.none { it.DeviceIdentity == wifiLock.ThingName } })isNeedToUpdateUserSync = true
-                if (wifiLocksList.all { wifiLock -> theOrderList.find { it.DeviceIdentity == wifiLock.ThingName }?.DisplayName != wifiLock.Attributes.DeviceName })isNeedToUpdateUserSync = true
-            }
-        }
-        if ( isBleLockListNeedUpdate && isOrderListNeedUpdate ) {
-            orderList.filter { it.DeviceType != "wifi" }.let { theOrderList ->
-                if (theOrderList.size != bleLocksList.size)isNeedToUpdateUserSync = true
-                if (bleLocksList.all { bleLock -> theOrderList.none { it.DeviceIdentity == bleLock.MACAddress } })isNeedToUpdateUserSync = true
-                if (bleLocksList.all { bleLock -> theOrderList.find { it.DeviceIdentity == bleLock.MACAddress }?.DisplayName != bleLock.DisplayName })isNeedToUpdateUserSync = true
-            }
-        }
+        val updateByWifiLocksList =
+            if ( isOrderListNeedUpdate || wifiLocksList.isNotEmpty()) {
+                orderList.filter { it.DeviceType == "wifi" }.let { theOrderList ->
+                    if (theOrderList.size != wifiLocksList.size) true
+                    else if (wifiLocksList.any { wifiLock -> theOrderList.none { it.DeviceIdentity == wifiLock.ThingName } }) true
+                    else wifiLocksList.any { wifiLock -> theOrderList.find { it.DeviceIdentity == wifiLock.ThingName }?.DisplayName != wifiLock.Attributes.DeviceName }
+                }
+            }else false
 
-        if ( isNeedToUpdateUserSync ){
+        val updateByBleLocksList =
+            if ( isBleLockListNeedUpdate || isOrderListNeedUpdate ) {
+                orderList.filter { it.DeviceType != "wifi" }.let { theOrderList ->
+                    if (theOrderList.size != bleLocksList.size) true
+                    else if (bleLocksList.any { bleLock -> theOrderList.none { it.DeviceIdentity == bleLock.MACAddress } }) true
+                    else bleLocksList.any { bleLock -> theOrderList.find { it.DeviceIdentity == bleLock.MACAddress }?.DisplayName != bleLock.DisplayName }
+                }
+            }else false
+
+        if ( updateByWifiLocksList || updateByBleLocksList ){
             updateOrderAfterCompareWithDevList(orderList, wifiLocksList, bleLocksList)
         }else {
             createListForView()
@@ -448,12 +519,13 @@ class HomeViewModel @Inject constructor(
         wifiLocksList: MutableList<WiFiLock>,
         bleLocksList: MutableList<BleLock>
     ){
+        Timber.d("updateOrderAfterCompareWithDevList")
         flow { emit(createNewOrderList(orderList, wifiLocksList, bleLocksList)) }
             .map { ( newOrderList, version )->
-                Timber.d("updateOrderAfterCompareWithDevList")
+
                 userSync.updateUserSync(getUuid.invoke(), UserSyncRequestPayload(
                     Dataset = RequestDataset(
-                        DeviceOrder = RequestOrder(newOrderList, version),
+                        DeviceOrder = RequestOrder(newOrderList, userSync.orderModifierVersion.value),
                         BLEDevices = null
                     )
                 ))
@@ -482,9 +554,9 @@ class HomeViewModel @Inject constructor(
 //                        )
 //                    }
             //bleLock list 名子不同的，order list 也要改
-            if(orderList.find { it.DeviceIdentity == bleLock.MACAddress }?.DisplayName != bleLock.DisplayName){
+//            if(orderList.find { it.DeviceIdentity == bleLock.MACAddress }?.DisplayName != bleLock.DisplayName){
                 newOrderList.find { it.DeviceIdentity == bleLock.MACAddress }?.DisplayName = bleLock.DisplayName
-            }
+//            }
         }
         wifiLocksList.forEach { wifiLock ->
             //device list 有的，order list 也要有
@@ -578,11 +650,11 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun clickBleLock(lock: SunionLock) {
-        collectBleLockStateToShow()
         if (currentBleLock?.isConnected() != true){
             flow { emit(lockProvider.getLockByMacAddress(lock.BleLockInfo?.MACAddress?: throw Exception("MACAddressNull"))) }
                 .map {
                     currentBleLock = it as AllLock
+                    delay(5000) //wait for lock disconnect.
                 }
                 .map {
                     currentBleLock?.connect()
@@ -591,39 +663,137 @@ class HomeViewModel @Inject constructor(
                 .flowOn(Dispatchers.IO)
                 .launchIn(viewModelScope)
         }else{
+
             if(lock.LockState?.Direction == "unknown"){
-//                flow { emit(currentBleLock.getBoltOrientation(lock.DeviceIdentity, getUuid.invoke())) }
-//                    .catch { e -> toastHttpException(e) }
-//                    .flowOn(Dispatchers.IO)
-//                    .launchIn(viewModelScope)
+                Timber.d("ready to getBoltOrientation")
+                flow { emit(currentBleLock?.getBoltOrientationByBle()) }
+                    .map {
+                        updateBleLockBySetting(it, lock)
+                    }
+                    .catch { e -> toastHttpException(e) }
+                    .flowOn(Dispatchers.IO)
+                    .launchIn(viewModelScope)
             }else {
                 if (lock.LockState?.Deadbolt == "unlock") {
-//                    flow { emit(currentBleLock.lock(lock.DeviceIdentity, getUuid.invoke())) }
-//                        .catch { e -> toastHttpException(e) }
-//                        .flowOn(Dispatchers.IO)
-//                        .launchIn(viewModelScope)
+                    Timber.d("ready to lock")
+                    flow { emit(currentBleLock?.lockByBle()) }
+                        .map {
+                            updateBleLockBySetting(it, lock)
+                        }
+                        .catch { e -> toastHttpException(e) }
+                        .flowOn(Dispatchers.IO)
+                        .launchIn(viewModelScope)
                 }
                 else {
-//                    flow { emit(currentBleLock.unlock(lock.DeviceIdentity, getUuid.invoke())) }
-//                        .catch { e -> toastHttpException(e) }
-//                        .flowOn(Dispatchers.IO)
-//                        .launchIn(viewModelScope)
+                    Timber.d("ready to unlock")
+                    flow { emit(currentBleLock?.unlockByBle()) }
+                        .map {
+                            updateBleLockBySetting(it, lock)
+                        }
+                        .catch { e -> toastHttpException(e) }
+                        .flowOn(Dispatchers.IO)
+                        .launchIn(viewModelScope)
                 }
             }
         }
     }
 
+    private fun collectLockSetting(){
+        bleLockState
+            .onEach {
+                updateBleLockBySetting(it, uiState.value.locks.find { it.DeviceIdentity == currentBleLock?.lockInfo?.macAddress }?:throw Exception("currentBleLockNull"))
+            }
+            .catch { e -> Timber.tag("CollectLockSetting").e(e) }
+            .flowOn(Dispatchers.IO)
+            .launchIn(viewModelScope)
+    }
+
+    private fun updateBleLockBySetting(setting: LockSetting?, lock: SunionLock) {
+        Timber.tag("ready to update UI").d(setting.toString())
+        val deadbolt = if (setting?.status?.equals(LockStatus.UNLOCKED) == true) "unlock" else "lock"
+        val orientation = when (setting?.config?.orientation){
+            LockOrientation.Right -> "right"
+            LockOrientation.Left -> "left"
+            else -> "unknown"
+        }
+        currentBleLockState = currentBleLockState.copy(
+            Direction = orientation,
+            Deadbolt = deadbolt,
+            Connected = true,
+            Battery = setting?.battery?:0
+        )
+
+        val newList = mutableListOf<SunionLock>()
+        val list = uiState.value.locks
+        list.forEach { oldlock ->
+            newList.add(
+                if(oldlock.DeviceIdentity == lock.DeviceIdentity){
+                    SunionLock(
+                        oldlock.DeviceIdentity,
+                        oldlock.Attributes,
+                        LockState = currentBleLockState,
+                        oldlock.BleLockInfo,
+                        oldlock.LockType,
+                        oldlock.Order,
+                    )
+                }else oldlock
+            )
+        }
+        _uiState.update { it.copy(locks = newList) }
+        val loadingList = uiState.value.loadingLocks
+        if(loadingList.size > 0) loadingList.removeIf { it.LockType != DeviceType.WiFi.typeNum }
+        _uiState.update { it.copy(loadingLocks = loadingList) }
+        Timber.d(newList.toString())
+    }
+
     private fun collectBleLockStateToShow() {
         bleConnectionState
             .onEach { event ->
-                Timber.tag("collectBleLockStateToShow").d(event.toString())
-                if(event.data?.first == true){
-                    updateBleLockUiState()
+                if(event.data?.second?.isNotBlank() == true){
+
+                    /** BleLock State Observer*/
+                    flow { emit(collectLockSetting()) }
+                        .flatMapConcat {
+                            flow { emit(currentBleLock?.getLockSetting()) }
+                        }
+                        .map { setting ->
+                            Timber.d("Normal Connect.")
+                            val sunionLock = uiState.value.locks.find {
+                                it.DeviceIdentity == (currentBleLock?.lockInfo?.macAddress
+                                    ?: throw Exception("macAddressNull"))
+                            }
+                            updateBleLockBySetting(setting, sunionLock?: throw Exception("sunionLockNull"))
+                            val loadingList = uiState.value.loadingLocks
+                            loadingList.removeIf {it.LockType != DeviceType.WiFi.typeNum}
+                            _uiState.update { it.copy(loadingLocks = loadingList) }
+                        }
+                        .catch { e -> Timber.tag("CollectLockSetting").e(e) }
+                        .flowOn(Dispatchers.IO)
+                        .launchIn(viewModelScope)
                 }
                 if(event.data?.first == false){
+                    Timber.d("Disconnect Ble")
                     val loadingList = uiState.value.loadingLocks
                     loadingList.removeIf {it.LockType != DeviceType.WiFi.typeNum}
                     _uiState.update { it.copy(loadingLocks = loadingList) }
+                    val newList = mutableListOf<SunionLock>()
+                    val list = uiState.value.locks
+                    list.forEach { oldlock ->
+                        newList.add(
+                            if(oldlock.LockType != DeviceType.WiFi.typeNum){
+                                SunionLock(
+                                    oldlock.DeviceIdentity,
+                                    oldlock.Attributes,
+                                    LockState = null,
+                                    oldlock.BleLockInfo,
+                                    oldlock.LockType,
+                                    oldlock.Order,
+                                )
+                            }else oldlock
+                        )
+                    }
+                    _uiState.update { it.copy(locks = newList) }
+                    currentBleLockState = currentBleLockState.copy(Connected = false)
                 }
             }
             .flowOn(Dispatchers.IO)
@@ -631,52 +801,19 @@ class HomeViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
-    private fun updateBleLockUiState() {
-        currentBleLock?.collectLockSetting()?.map { setting ->
-    //                val list = uiState.value.locks
-    //                list.find { it.DeviceIdentity == currentBleLock.lockInfo.macAddress }?.apply {
-    //                    this.LockState = Reported(
-    //                        Direction = if(setting.config.orientation == LockOrientation.NotDetermined)"unknown" else "",
-    //                        Deadbolt = when(setting.status){
-    //                            LockStatus.LOCKED -> "lock"
-    //                            LockStatus.UNLOCKED -> "unlock"
-    //                            else -> "unknown" },
-    //                        Battery = setting.battery,
-    //                        Rssi = 0,
-    //                        Status = setting.status,
-    //                        RegistryVersion = 0,
-    //                        AccessCodeTime = 0,
-    //                        Searchable = 0,
-    //                        Connected = true,
-    //                    )
-    //                }
-    //
-    //                _uiState.update { it.copy(locks = list) }
-        }?.flowOn(Dispatchers.IO)?.onCompletion {
-            val loadingList = uiState.value.loadingLocks
-            loadingList.removeIf {it.LockType != DeviceType.WiFi.typeNum}
-            _uiState.update { it.copy(loadingLocks = loadingList) }
-        }?.catch { Timber.e(it) }?.launchIn(viewModelScope)
-    }
-
     private fun storeBleLocks(list: List<BleLock>) {
         list.forEach { lock ->
-            lockInformationRepository.save(
-                LockConnectionInformation(
-                    macAddress = lock.MACAddress,
-                    keyOne = lock.ConnectionKey,
-                    oneTimeToken = lock.OneTimeToken,
-                    sharedFrom = lock.SharedFrom,
-                    deviceName = lock.DisplayName,
-                    permanentToken = lock.PermanentToken,
-                    model = "",
-                    tokenName = "",
-                    index = 0,
-                    keyTwo = "",
-                    isOwnerToken = false
-                )
-            )
+            updateBleLockFromDB(lock)
         }
+    }
+
+    private fun updateBleLockFromDB(lock: BleLock) {
+        flow { emit(lockInformationRepository.get(lock.MACAddress).toObservable().asFlow().single()) }
+            .map {
+                lockInformationRepository.save(
+                    it.copy(deviceName = lock.DisplayName)
+                )
+            }
     }
 
     private fun clickWiFiLock(lock: SunionLock) {
@@ -732,11 +869,17 @@ class HomeViewModel @Inject constructor(
                     }
                     DeviceType.Ble.typeNum -> {
                         val bleLock = bleLocksList.find { it.MACAddress == order.DeviceIdentity }?:throw Exception("BleLock's info is null.")
-                        SunionLock(DeviceIdentity = order.DeviceIdentity, null, null, bleLock, DeviceType.Ble.typeNum, order.Order)
+                        if(bleLock.MACAddress == currentBleLock?.lockInfo?.macAddress){
+                            SunionLock(DeviceIdentity = order.DeviceIdentity, null, currentBleLockState, bleLock, DeviceType.Ble.typeNum, order.Order)
+                        }
+                        else SunionLock(DeviceIdentity = order.DeviceIdentity, null, null, bleLock, DeviceType.Ble.typeNum, order.Order)
                     }
                     DeviceType.BleMode.typeNum -> {
                         val bleLock = bleLocksList.find { it.MACAddress == order.DeviceIdentity }?:throw Exception("BleLock's info is null.")
-                        SunionLock(DeviceIdentity = order.DeviceIdentity, null, null, bleLock, DeviceType.BleMode.typeNum , order.Order)
+                        if(bleLock.MACAddress == currentBleLock?.lockInfo?.macAddress){
+                            SunionLock(DeviceIdentity = order.DeviceIdentity, null, currentBleLockState, bleLock, DeviceType.Ble.typeNum, order.Order)
+                        }
+                        else SunionLock(DeviceIdentity = order.DeviceIdentity, null, null, bleLock, DeviceType.BleMode.typeNum , order.Order)
                     }
                     else -> { return@forEach }
                 }
@@ -753,7 +896,7 @@ class HomeViewModel @Inject constructor(
     }
 
     fun getUpdateTime(thingName: String) = 0
-    fun setLockName(thingName: String, name: String){
+    fun setLockName(name: String){
         _uiState.update { it.copy(tempLockName = name) }
         Timber.d(name)
     }
@@ -769,9 +912,24 @@ class HomeViewModel @Inject constructor(
                     .launchIn(viewModelScope)
             }else{
                 //
+                flow { emit(delay(1000)) }
+                    .flatMapConcat { flow { emit(lockProvider.getLockByMacAddress(thingName)) } }
+                    .flatMapConcat {
+                        flow { emit(it?.changeLockNameByBle(uiState.value.tempLockName)) }
+                    }
+                    .flatMapConcat {
+                        flow { emit(updateUserSyncWithBleName(uiState.value.tempLockName)) }
+                    }
+                    .flowOn(Dispatchers.IO)
+                    .onStart {
+                        _uiState.update { it.copy(isLoading = true, loadingMessage = "Updating...") }
+                    }
+                    .catch { Timber.e(it) }
+                    .launchIn(viewModelScope)
             }
         }
     }
+
     fun getDeviceList(){
         flow { emit(getIdToken().single()) }
             .map { idToken ->
@@ -785,6 +943,21 @@ class HomeViewModel @Inject constructor(
             .catch { e -> toastHttpException(e) }
             .launchIn(viewModelScope)
     }
+
+    fun turnToTheLastPage(){
+        flow { emit(lockProvider.getLockByMacAddress(uiState.value.locks.last().BleLockInfo?.MACAddress?: throw Exception("MACAddressNull"))) }
+            .map {
+                currentBleLock = it as AllLock
+                Timber.d("current lock's mac = ${it.lockInfo.macAddress}")
+                statefulConnection.emitConnectStateAfterPairing()
+            }
+            .flowOn(Dispatchers.IO)
+            .catch { Timber.e(it) }
+            .launchIn(viewModelScope)
+
+        _uiState.update { it.copy(currentPage = it.locks.size + 1) }
+    }
+
     @OptIn(FlowPreview::class)
     fun boltOrientation(macAddress: String) {
 //        loadLocksFlow()

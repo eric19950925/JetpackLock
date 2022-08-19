@@ -1,5 +1,6 @@
 package com.sunion.ikeyconnect.settings.event_log
 
+import android.annotation.SuppressLint
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -68,6 +69,7 @@ fun EventLogScreen(
         LoadingScreen()
 }
 
+@SuppressLint("UnusedMaterialScaffoldPaddingParameter")
 @OptIn(ExperimentalFoundationApi::class)
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
