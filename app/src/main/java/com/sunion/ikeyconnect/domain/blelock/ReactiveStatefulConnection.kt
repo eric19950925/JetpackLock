@@ -53,7 +53,7 @@ class ReactiveStatefulConnection @Inject constructor(
     }
 
     override val trashBin: CompositeDisposable = CompositeDisposable()
-    override var macAddress: String? = null
+    override var connectMacAddress: String? = null
     override var connectionDisposable: Disposable? = null
     override val disconnectTriggerSubject = PublishSubject.create<Boolean>()
     var _rxBleConnection: RxBleConnection? = null
@@ -78,7 +78,7 @@ class ReactiveStatefulConnection @Inject constructor(
     }
 
     override fun isConnectedWithDevice(): Boolean {
-        TODO("Not yet implemented")
+        return _bleDevice?.connectionState == RxBleConnection.RxBleConnectionState.CONNECTED
     }
 
     fun connect_asflow(lockInfo: LockInfo) {
@@ -108,6 +108,35 @@ class ReactiveStatefulConnection @Inject constructor(
                 .launchIn(lockScope)
     }
 
+    override fun connectAsFlowForAutoUnLock(lockInfo: LockInfo) {
+
+        //todo 3min timeout
+        connectionTimerJob = coroutineScope.launch {
+            Timber.d("coroutineScope 3 min.")
+            delay(1000 * 60 * 3)
+            connectionDisposable?.dispose()
+            _bleDevice = null
+            scanJob?.cancel()
+            emitConnectionState(Event.error(TimeoutException::class.java.simpleName))
+        }
+
+        scanJob?.cancel()
+        scanJob =
+            flow { emit( rxBleClient.getBleDevice(lockInfo.macAddress))}
+                .onEach{
+                    connectMacAddress = lockInfo.macAddress
+                    _bleDevice = it
+                    observeConnectionStateChanges(it)
+                    connectToDevice(it, lockInfo.macAddress)
+                    scanJob?.cancel()
+                }
+                .catch {
+                    Timber.e(it)
+                }
+                .launchIn(lockScope)
+    }
+
+    @OptIn(FlowPreview::class)
     private fun connectToDevice(rxBleDevice: RxBleDevice, macAddress: String) {
         scanJob?.cancel()
         connectionJob?.cancel()
@@ -117,6 +146,7 @@ class ReactiveStatefulConnection @Inject constructor(
             delay(15000)
             connectionDisposable?.dispose()
             _bleDevice = null
+            connectMacAddress = null
 //            lockScope.cancel()
             emitConnectionState(Event.error(TimeoutException::class.java.simpleName))
         }
@@ -131,33 +161,42 @@ class ReactiveStatefulConnection @Inject constructor(
                 it.requestMtu(RxBleConnection.GATT_MTU_MAXIMUM).toObservable().asFlow()
             }
             .flatMapConcat {
-                bleHandShakeUseCase.getLockConnection(macAddress).toObservable().asFlow()
-            }
-             .flatMapConcat { info ->
+                val info = bleHandShakeUseCase.getLockConnection(macAddress).blockingGet()
                 bleHandShakeUseCase.invoke(
                     input1 = info,
                     deviceMacAddress = macAddress,
                     deviceName = device(macAddress).name,
                     input3 = _rxBleConnection!!
                 ).asFlow()
-            }
-            .filter { permission -> permission.isNotBlank()}
-             .flatMapConcat { permission ->
-                 Timber.d("connect get permission = $permission")
-                 emitConnectionState((Event.success(Pair(true, permission))))
-                 collectLockSetting()
-                 bleHandShakeUseCase.getLockConnection(macAddress).toObservable().asFlow()
              }
-             .map { info ->
-                _bleDevice = rxBleDevice
-                keyTwo = info.keyTwo
+             .flatMapConcat {
+                 Timber.d(it)
+                 flow { emit(emitPermission(it, rxBleDevice, macAddress)) }
+                     .flowOn(Dispatchers.IO)
              }
              .catch {
-                _bleDevice = null
-                emitConnectionState(Event.error(TimeoutException::class.java.simpleName))
+                 _bleDevice = null
+                 connectMacAddress = null
+                 Timber.e(it)
+                 emitConnectionState(Event.error(TimeoutException::class.java.simpleName))
              }
              .flowOn(Dispatchers.IO)
              .launchIn(lockScope)
+    }
+
+    private fun emitPermission(permission: String, rxBleDevice: RxBleDevice, macAddress: String) {
+        if (permission.isNotBlank()) {
+            Timber.tag("@").d("connect get permission = $permission")
+            emitConnectionState((Event.success(Pair(true, permission))))
+            collectLockSetting()
+            bleHandShakeUseCase.getLockConnection(macAddress).toObservable().asFlow()
+                .map { info ->
+                    _bleDevice = rxBleDevice
+                    keyTwo = info.keyTwo
+                }
+                .flowOn(Dispatchers.IO)
+                .launchIn(lockScope)
+        }
     }
 
     fun emitConnectStateAfterPairing(){
@@ -246,7 +285,7 @@ class ReactiveStatefulConnection @Inject constructor(
         } else {
             emitConnectionState(Event.error(error::class.java.simpleName, false to macAddress))
         }
-        this.macAddress = null
+        this.connectMacAddress = null
     }
 
     override fun sendBytes(bytes: ByteArray): Observable<ByteArray> {
@@ -285,7 +324,7 @@ class ReactiveStatefulConnection @Inject constructor(
     }
 
     override fun close() {
-        this.macAddress = null
+        this.connectMacAddress = null
         disconnectTriggerSubject.onNext(true)
         connectionDisposable?.dispose()
         connectionDisposable = null

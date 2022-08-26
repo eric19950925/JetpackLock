@@ -2,12 +2,15 @@ package com.sunion.ikeyconnect.di
 
 import android.app.Application
 import android.content.Context
+import android.os.PowerManager
 import com.amazonaws.auth.CognitoCachingCredentialsProvider
 import com.amazonaws.mobile.client.AWSMobileClient
 import com.amazonaws.mobile.client.Callback
 import com.amazonaws.mobile.client.UserStateDetails
 import com.amazonaws.mobileconnectors.iot.AWSIotMqttManager
 import com.amazonaws.regions.Regions
+import com.google.android.gms.location.GeofencingClient
+import com.google.android.gms.location.LocationServices
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.sunion.ikeyconnect.*
@@ -25,6 +28,7 @@ import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -41,6 +45,16 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 @Module(includes = [AppModule.Bind::class])
 object AppModule {
+
+    @Provides
+    @Singleton
+    fun provideGeoClient(@ApplicationContext context: Context): GeofencingClient =
+        LocationServices.getGeofencingClient(context)
+
+    @Provides
+    @Singleton
+    fun providePowerManager(@ApplicationContext context: Context):
+            PowerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
 
     @Provides
     @Singleton

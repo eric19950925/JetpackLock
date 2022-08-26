@@ -21,13 +21,14 @@ import com.sunion.ikeyconnect.domain.usecase.account.GetIdTokenUseCase
 import com.sunion.ikeyconnect.domain.usecase.account.GetIdentityIdUseCase
 import com.sunion.ikeyconnect.domain.usecase.account.GetUuidUseCase
 import com.sunion.ikeyconnect.domain.usecase.device.CollectWIfiStateUseCase
+import com.sunion.ikeyconnect.domain.usecase.device.GetAllLocksInfoUseCase
 import com.sunion.ikeyconnect.domain.usecase.device.IsNetworkConnectedUseCase
 import com.sunion.ikeyconnect.domain.usecase.home.*
 import com.sunion.ikeyconnect.lock.AllLock
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.reactivex.schedulers.Schedulers
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.rx2.asFlow
 import org.json.JSONObject
 import org.json.JSONTokener
 import timber.log.Timber
@@ -51,6 +52,7 @@ class HomeViewModel @Inject constructor(
     private val lockInformationRepository: LockInformationRepository,
     private val lockProvider: LockProvider,
     private val statefulConnection: ReactiveStatefulConnection,
+    private val getAllLocksInfoUseCase: GetAllLocksInfoUseCase
     ) :
     ViewModel() {
 
@@ -75,11 +77,11 @@ class HomeViewModel @Inject constructor(
     private val updateTimes: MutableMap<String, LocalDateTime> = mutableMapOf()
     private val hasBeenCollectedBleConnectStatus: MutableList<String> = mutableListOf()
 
-    val mqttConnectionState: SharedFlow<ConnectMqttUiEvent> = mqttStatefulConnection.connectionState
+    private val mqttConnectionState: SharedFlow<ConnectMqttUiEvent> = mqttStatefulConnection.connectionState
 
-    val bleConnectionState: SharedFlow<Event<Pair<Boolean, String>>> = statefulConnection.connectionState
+    private val bleConnectionState: SharedFlow<Event<Pair<Boolean, String>>> = statefulConnection.connectionState
 
-    val bleLockState: SharedFlow<LockSetting> = statefulConnection.bleLockState
+    private val bleLockState: SharedFlow<LockSetting> = statefulConnection.bleLockState
 
     private val _showGuide = mutableStateOf(false)
     val showGuide: State<Boolean> = _showGuide
@@ -118,12 +120,13 @@ class HomeViewModel @Inject constructor(
             .catch { Timber.e(it) }
             .launchIn(viewModelScope)
 
-//        getAllLocksInfoUseCase.invoke()
-//            .map {
-//                it.forEach {
-//                    Timber.d(it.macAddress + " " + it.keyTwo)
-//                }
-//            }.subscribeOn(Schedulers.io()).subscribe()
+        getAllLocksInfoUseCase.invoke()
+            .map {
+                Timber.d("LocksList in DB'size = ${it.size}")
+                it.forEach {
+                    Timber.d(it.toString())
+                }
+            }.subscribeOn(Schedulers.io()).subscribe()
     }
 
     private fun collectMqttConnectionState() {
@@ -653,8 +656,8 @@ class HomeViewModel @Inject constructor(
         if (currentBleLock?.isConnected() != true){
             flow { emit(lockProvider.getLockByMacAddress(lock.BleLockInfo?.MACAddress?: throw Exception("MACAddressNull"))) }
                 .map {
-                    currentBleLock = it as AllLock
-                    delay(5000) //wait for lock disconnect.
+                    currentBleLock = (it?:throw Exception("null"))as AllLock
+                    delay(1000) //wait for lock disconnect.
                 }
                 .map {
                     currentBleLock?.connect()
@@ -754,7 +757,11 @@ class HomeViewModel @Inject constructor(
                     /** BleLock State Observer*/
                     flow { emit(collectLockSetting()) }
                         .flatMapConcat {
+                            Timber.d(" start to getLockSetting")
                             flow { emit(currentBleLock?.getLockSetting()) }
+                        }
+                        .flatMapConcat {
+                            it?:throw Exception("settingNull")
                         }
                         .map { setting ->
                             Timber.d("Normal Connect.")
@@ -803,17 +810,51 @@ class HomeViewModel @Inject constructor(
 
     private fun storeBleLocks(list: List<BleLock>) {
         list.forEach { lock ->
-            updateBleLockFromDB(lock)
+            flow { emit(updateBleLockFromDB(lock)) }
+                .flowOn(Dispatchers.IO)
+                .launchIn(viewModelScope)
         }
     }
 
     private fun updateBleLockFromDB(lock: BleLock) {
-        flow { emit(lockInformationRepository.get(lock.MACAddress).toObservable().asFlow().single()) }
-            .map {
-                lockInformationRepository.save(
-                    it.copy(deviceName = lock.DisplayName)
-                )
+        lockInformationRepository.get(lock.MACAddress)
+            .doOnSuccess { lockConnection ->
+                lockInformationRepository.save(lockConnection.copy(deviceName = lock.DisplayName, permanentToken = lock.PermanentToken))
+                Timber.d("update key two successful")
             }
+            .doOnError {
+                saveNewLock(lock)
+            }
+            .subscribeOn(Schedulers.single())
+            .subscribe({
+                Timber.d("$it has been store.")
+            },{
+                Timber.e(it)
+            })
+    }
+
+    private fun saveNewLock(lock: BleLock) {
+        val displayIndex =
+            runCatching {
+                lockInformationRepository.getMinIndexOf().blockingGet()
+            }.getOrNull()
+                ?.run { this - 2 } ?: 0
+        lockInformationRepository.save(
+            LockConnectionInformation(
+                macAddress = lock.MACAddress,
+                model = "",
+                displayName = lock.DisplayName,
+                keyOne = lock.ConnectionKey,
+                keyTwo = "",
+                oneTimeToken = lock.OneTimeToken,
+                permanentToken = lock.PermanentToken,
+                isOwnerToken = true,
+                tokenName = lock.SharedFrom,
+                createdAt = 1614298596650,
+                permission = "A",
+                index = displayIndex
+            )
+        )
     }
 
     private fun clickWiFiLock(lock: SunionLock) {

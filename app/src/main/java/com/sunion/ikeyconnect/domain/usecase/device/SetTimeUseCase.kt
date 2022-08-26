@@ -57,7 +57,7 @@ class SetTimeUseCase @Inject constructor(
     }
 
     fun setTimeZone(zone: String): Single<Boolean> {
-        return statefulConnection.macAddress?.let { mac ->
+        return statefulConnection.connectMacAddress?.let { mac ->
             lockInformationRepository
                 .get(mac)
                 .flatMap { lockConnection ->
@@ -98,7 +98,7 @@ class SetTimeUseCase @Inject constructor(
     }
 
     fun getTime(): Single<Int> {
-        return statefulConnection.macAddress?.let { mac ->
+        return statefulConnection.connectMacAddress?.let { mac ->
             lockInformationRepository
                 .get(mac)
                 .flatMap { lockConnection ->

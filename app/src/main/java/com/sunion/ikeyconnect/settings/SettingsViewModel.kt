@@ -102,8 +102,8 @@ class SettingsViewModel @Inject constructor(
 
     private fun getLockSetting() {
         flow { emit(lockProvider.getLockByMacAddress(deviceIdentity?:throw Exception("macAddressNull"))) }
-            .map {
-                it?.getLockSetting()
+            .flatMapConcat {
+                it?.getLockSetting()?:throw Exception("settingNull")
             }
             .map { setting ->
                 setting to readVersionByBle()

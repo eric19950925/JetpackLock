@@ -5,6 +5,7 @@ import androidx.lifecycle.MutableLiveData
 import com.polidea.rxandroidble2.RxBleConnection
 import com.polidea.rxandroidble2.RxBleDevice
 import com.sunion.ikeyconnect.domain.model.Event
+import com.sunion.ikeyconnect.domain.model.LockInfo
 import io.reactivex.Observable
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.disposables.Disposable
@@ -15,7 +16,7 @@ interface StatefulConnection {
 
     val trashBin: CompositeDisposable
 
-    var macAddress: String?
+    var connectMacAddress: String?
 
     var connectionDisposable: Disposable?
 
@@ -32,6 +33,8 @@ interface StatefulConnection {
     fun connectionFallback(): Observable<RxBleConnection>
 
     fun isConnectedWithDevice(): Boolean
+
+    fun connectAsFlowForAutoUnLock(lockInfo: LockInfo)
 
 //    fun establishConnection(macAddress: String, isSilentlyFail: Boolean): Disposable
 //

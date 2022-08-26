@@ -49,7 +49,7 @@ interface Lock {
 
     suspend fun getBoltOrientationByBle(): LockSetting
 
-    suspend fun getLockSetting(): LockSetting
+    suspend fun getLockSetting(): Flow<LockSetting>
 
     suspend fun getLockConfigByBle(): LockConfig
 

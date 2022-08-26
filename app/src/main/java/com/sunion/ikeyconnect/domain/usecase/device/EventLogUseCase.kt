@@ -7,7 +7,6 @@ import com.sunion.ikeyconnect.domain.Interface.LockInformationRepository
 import com.sunion.ikeyconnect.domain.blelock.BleCmdRepository
 import com.sunion.ikeyconnect.domain.blelock.StatefulConnection
 import com.sunion.ikeyconnect.domain.blelock.unSignedInt
-import com.sunion.ikeyconnect.domain.command.GetEventCommand
 import com.sunion.ikeyconnect.domain.exception.NotConnectedException
 import com.sunion.ikeyconnect.domain.model.Log
 import io.reactivex.Completable
@@ -38,7 +37,7 @@ class EventLogUseCase @Inject constructor(
     }
 
     fun queryLogFromIndex(index: Int): Single<Log.LockEventLog> {
-        return statefulConnection.macAddress?.let { mac ->
+        return statefulConnection.connectMacAddress?.let { mac ->
             lockInformationRepository
                 .get(mac)
                 .flatMap { lockConnection ->
@@ -79,7 +78,7 @@ class EventLogUseCase @Inject constructor(
     }
 
     fun queryLogQuantity(): Single<Int> {
-        return statefulConnection.macAddress?.let { mac ->
+        return statefulConnection.connectMacAddress?.let { mac ->
             lockInformationRepository
                 .get(mac)
                 .flatMap { lockConnection ->
@@ -111,7 +110,7 @@ class EventLogUseCase @Inject constructor(
     }
 
     fun queryLogFromDevice(): Completable {
-        return statefulConnection.macAddress?.let { mac ->
+        return statefulConnection.connectMacAddress?.let { mac ->
             eventLogRepository
                 .getLatestLog(macAddress = mac)
                 .onErrorReturn {
@@ -139,7 +138,7 @@ class EventLogUseCase @Inject constructor(
     }
 
     fun getAllLogFromLocalCache(): Flowable<List<Log.LockEventLog>> {
-        return statefulConnection.macAddress?.let { mac ->
+        return statefulConnection.connectMacAddress?.let { mac ->
             Timber.d("macAddress: $mac")
             eventLogRepository.getAll(mac)
         } ?: Flowable.error(NotConnectedException())

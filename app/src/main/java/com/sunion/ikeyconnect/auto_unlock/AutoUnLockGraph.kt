@@ -25,12 +25,16 @@ fun NavGraphBuilder.autoUnLockGraph(
                 navController = navController,
             )
         }
-        composable("${AutoUnLockRoute.SettingLocation.route}/{thingName}/{deviceType}") { backStackEntry ->
+        composable("${AutoUnLockRoute.SettingLocation.route}/{thingName}/{deviceType}/{latitude}/{longitude}") { backStackEntry ->
             val thingName = backStackEntry.arguments?.getString("thingName") ?: ""
             val deviceTypeString = backStackEntry.arguments?.getString("deviceType") ?: ""
             val deviceType = mapDeviceType(deviceTypeString)
-            val viewModel = hiltViewModel<AutoUnlockViewModel>()
-            viewModel.deviceIdentity ?: viewModel.init(thingName, deviceType)
+            val latitudeString = backStackEntry.arguments?.getString("latitude") ?: ""
+            val latitude = latitudeString.toDouble()
+            val longitudeString = backStackEntry.arguments?.getString("longitude") ?: ""
+            val longitude = longitudeString.toDouble()
+            val viewModel = hiltViewModel<SetLocationViewModel>()
+            viewModel.deviceIdentity ?: viewModel.init(thingName, deviceType, latitude, longitude)
             SetLocationScreen(viewModel = viewModel, navController = navController)
         }
     }

@@ -426,7 +426,7 @@ class  AllLock @Inject constructor(
             }.toObservable().asFlow().single()
     }
 
-    override suspend fun getLockSetting(): LockSetting {
+    override suspend fun getLockSetting(): Flow<LockSetting> {
         val command = GetLockSettingCommand(iKeyDataTransmission)
         return lockInformationRepository.get(lockInfo.macAddress).toObservable()
             .asFlow()
@@ -441,7 +441,6 @@ class  AllLock @Inject constructor(
                     .map { notification -> command.parseResult(it.keyTwo, notification) }
                     .single()
             }
-            .single()
     }
 
     suspend fun setConfig(setting: LockConfig): Boolean {

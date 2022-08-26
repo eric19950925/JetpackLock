@@ -8,10 +8,14 @@
 
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!--  Android 12  -->
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 
     <application
         android:name="com.sunion.ikeyconnect.HiltApplication"
@@ -37,6 +41,41 @@
             android:name="com.sunion.ikeyconnect.account.AccountActivity"
             android:exported="true"
             android:screenOrientation="portrait" />
+
+        <receiver
+            android:name="com.sunion.ikeyconnect.auto_unlock.BootBroadcastReceiver"
+            android:enabled="true"
+            android:exported="true" >
+            <intent-filter android:priority="500" >
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name="com.sunion.ikeyconnect.auto_unlock.GeofenceBroadcastReceiver"
+            android:enabled="true"
+            android:exported="true" /> <!-- Foreground services in Q+ require type. -->
+        <service
+            android:name="com.sunion.ikeyconnect.auto_unlock.AutoUnlockService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+
+
+        <receiver android:name="com.sunion.ikeyconnect.auto_unlock.GeoFenceRegisterReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <data android:scheme="package"  />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

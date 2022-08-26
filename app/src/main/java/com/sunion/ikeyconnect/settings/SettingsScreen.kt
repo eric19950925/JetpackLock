@@ -197,7 +197,8 @@ fun SettingsScreen(
                     text = stringResource(id = R.string.setting_vacation_mode),
                     checked = tempState?.vacationMode?:false,
                     onCheckedChange = { onVacationModeClick(!(tempState?.vacationMode?:false)) },
-                    textStyle = textStyle
+                    textStyle = textStyle,
+                    isClickable = true
                 )
                 IKeyDivider()
                 SettingAutoLockItem(
@@ -214,7 +215,8 @@ fun SettingsScreen(
                     text = stringResource(id = R.string.setting_keypress_beep),
                     checked = tempState?.keyPressBeep?:false,
                     onCheckedChange = { onKeypressBeepClick(!(tempState?.keyPressBeep?:false)) },
-                    textStyle = textStyle
+                    textStyle = textStyle,
+                    isClickable = true
                 )
                 if(state.deviceType.equals(HomeViewModel.DeviceType.WiFi.typeNum)){
                     IKeyDivider()
@@ -222,7 +224,8 @@ fun SettingsScreen(
                         text = stringResource(id = R.string.setting_secure_mode),
                         checked = tempState?.secureMode?:false,
                         onCheckedChange = { onSecureModeClick(!(tempState?.secureMode?:false)) },
-                        textStyle = textStyle
+                        textStyle = textStyle,
+                        isClickable = true
                     )
                 }
                 IKeyDivider()
@@ -463,6 +466,7 @@ fun SettingItemSwitch(
     text: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
+    isClickable: Boolean,
     textStyle: TextStyle
 ) {
     SettingItem {
@@ -471,7 +475,8 @@ fun SettingItemSwitch(
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(uncheckedThumbColor = Color.White)
+            colors = SwitchDefaults.colors(uncheckedThumbColor = Color.White),
+            enabled = isClickable
         )
     }
 }
@@ -585,28 +590,32 @@ private fun Preview() {
                             text = stringResource(id = R.string.setting_vacation_mode),
                             checked = false,
                             onCheckedChange = {},
-                            textStyle = textStyle
+                            textStyle = textStyle,
+                            isClickable = true
                         )
                         IKeyDivider()
                         SettingItemSwitch(
                             text = stringResource(id = R.string.setting_auto_lock),
                             checked = false,
                             onCheckedChange = {},
-                            textStyle = textStyle
+                            textStyle = textStyle,
+                            isClickable = true
                         )
                         IKeyDivider()
                         SettingItemSwitch(
                             text = stringResource(id = R.string.setting_keypress_beep),
                             checked = false,
                             onCheckedChange = {},
-                            textStyle = textStyle
+                            textStyle = textStyle,
+                            isClickable = true
                         )
                         IKeyDivider()
                         SettingItemSwitch(
                             text = stringResource(id = R.string.setting_secure_mode),
                             checked = false,
                             onCheckedChange = {},
-                            textStyle = textStyle
+                            textStyle = textStyle,
+                            isClickable = true
                         )
                         IKeyDivider()
                         SettingItem {

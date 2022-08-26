@@ -92,10 +92,14 @@ class MqttStatefulConnection @Inject constructor(
         if(!topicSubscribedList.contains(repo.apiPortalAcceptedTopic(identityId))){
             topicSubscribedList.add(repo.apiPortalAcceptedTopic(identityId))
             topicSubscribedList.add(repo.apiPortalRejectedTopic(identityId))
-            mqttManager.subscribeToTopic(repo.apiPortalAcceptedTopic(identityId), AWSIotMqttQos.QOS0, callbackForPub, callbackForMqtt)
-            mqttManager.subscribeToTopic(repo.apiPortalRejectedTopic(identityId), AWSIotMqttQos.QOS0) { _, data ->
-                val message = String(data?:return@subscribeToTopic, Charsets.UTF_8)
-                Timber.e("ApiPortalRejected: $message")
+            try {
+                mqttManager.subscribeToTopic(repo.apiPortalAcceptedTopic(identityId), AWSIotMqttQos.QOS0, callbackForPub, callbackForMqtt)
+                mqttManager.subscribeToTopic(repo.apiPortalRejectedTopic(identityId), AWSIotMqttQos.QOS0) { _, data ->
+                    val message = String(data?:return@subscribeToTopic, Charsets.UTF_8)
+                    Timber.e("ApiPortalRejected: $message")
+                }
+            }catch (e:Exception){
+               Timber.e(e)
             }
         }
     }

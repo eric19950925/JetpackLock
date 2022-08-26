@@ -41,11 +41,6 @@ class BleCmdRepository @Inject constructor(){
         const val DATA = "DATA"
         const val CURRENT_LOCK_MAC = "CURRENT_LOCK_MAC"
         const val GEOFENCE_RADIUS_IN_METERS = 100f
-        var MY_PENDING_INTENT_FLAG = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-        } else {
-            PendingIntent.FLAG_UPDATE_CURRENT
-        }
     }
 
     enum class D6Features(val byte: Int){
@@ -1431,16 +1426,14 @@ class BleCmdRepository @Inject constructor(){
 
     fun determineTokenState(data: ByteArray, isLockFromSharing: Boolean): Int {
         return when (data.component1().unSignedInt()) {
-            //0 -> if (isLockFromSharing) throw ConnectionTokenException.LockFromSharingHasBeenUsedException() else throw ConnectionTokenException.IllegalTokenException()
-            1 -> Log.d("TAG","VALID_TOKEN")
-//                DeviceToken.VALID_TOKEN
+            0 -> if (isLockFromSharing) throw ConnectionTokenException.LockFromSharingHasBeenUsedException() else throw ConnectionTokenException.IllegalTokenException()
+            1 -> DeviceToken.VALID_TOKEN
             // according to documentation, 2 -> the token has been swapped inside the device,
             // hence the one time token no longer valid to connect.
-            //2 -> if (isLockFromSharing) throw ConnectionTokenException.LockFromSharingHasBeenUsedException() else throw ConnectionTokenException.DeviceRefusedException()
-            3 -> Log.d("TAG","ONE_TIME_TOKEN")
-//                DeviceToken.ONE_TIME_TOKEN
-            // 0, and else
-            else -> Log.d("TAG","IllegalTokenStateException") //if (isLockFromSharing) throw ConnectionTokenException.LockFromSharingHasBeenUsedException() else throw ConnectionTokenException.IllegalTokenStateException()
+            2 -> if (isLockFromSharing) throw ConnectionTokenException.LockFromSharingHasBeenUsedException() else throw ConnectionTokenException.DeviceRefusedException()
+            3 -> DeviceToken.ONE_TIME_TOKEN
+//             0, and else
+            else -> if (isLockFromSharing) throw ConnectionTokenException.LockFromSharingHasBeenUsedException() else throw ConnectionTokenException.IllegalTokenStateException()
         }
     }
 
